@@ -4,6 +4,12 @@ from numba import jit
 
 from numpy import float as np_float
 
+"""
+Mosley L. A balanced approach to the multi-class imbalance problem. 
+Graduate Theses and Dissertations [Internet]. 
+2013;13537. Available from: http://lib.dr.iastate.edu/etd/13537.
+"""
+
 @jit(nopython = True)
 def g_score_compiled(c_matrix):
 
