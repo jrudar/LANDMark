@@ -1,7 +1,7 @@
 import setuptools
 
 setuptools.setup(name="LANDMark",
-                 version="1.0.0.dev2",
+                 version="1.0.0",
                  author="Josip Rudar, Teresita M. Porter, Michael Wright, Brian Golding, Mehrdad Hajibabaei",
                  author_email="rudarj@uoguelph.ca",
                  description="LANDMark: An ensemble approach to the supervised selection of biomarkers in high-throughput sequencing data",
