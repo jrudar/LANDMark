@@ -6,8 +6,9 @@ Installation
 ------------
 To install LANDMark, please download the installation fails and install by typing ::
 
-  python setup.py install
-  
-dfd
+If you already have a working installation of numpy and scipy,
+the easiest way to install scikit-learn is using ``pip``   ::
+
+    pip install -U scikit-learn
 
 
