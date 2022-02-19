@@ -17,7 +17,8 @@ Once downloaded, go to the LANDMark directory and type:
         grow until a stopping criterion is met.
         
     max_features: float, default = 0.80
-        The maximum features used to train each model at each node.
+        The maximum features used to train each model at each node. These
+        features are randomly selected at each node.
         
     min_gain: float, default = 0
         The minimum gain needed to split a node.
