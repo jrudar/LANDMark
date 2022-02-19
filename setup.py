@@ -1,12 +1,12 @@
-import setuptools
+from distutils.core import setup
 
-setuptools.setup(name="LANDMark",
-                 version="1.0.0",
-                 author="Josip Rudar, Teresita M. Porter, Michael Wright, Brian Golding, Mehrdad Hajibabaei",
+setup(name="LANDMark",
+                 version="1.0.0.dev2",
+                 author="Josip Rudar, Teresita M. Porter, Michael Wright, G. Brian Golding, Mehrdad Hajibabaei",
                  author_email="rudarj@uoguelph.ca",
                  description="LANDMark: An ensemble approach to the supervised selection of biomarkers in high-throughput sequencing data",
                  url="https://github.com/jrudar/LANDMark",
-                 license = "GPL",
+                 license = "MIT",
                  keywords = "biomarker selection, metagenomics, metabarcoding, biomonitoring, ecological assessment, machine learning, supervised learning, unsupervised learning",
                  packages=["LANDMark"],
                  python_requires = ">=3.8",
@@ -20,4 +20,5 @@ setuptools.setup(name="LANDMark",
                  classifiers=["Programming Language :: Python :: 3.8+",
                               "License :: MIT License",
                               "Operating System :: OS Independent",
-                              "Topic :: Ecology :: Biomarker Selection :: Metagenomics :: Supervised Learning :: Unsupervised Learning :: Metabarcoding :: Biomonitoring :: Ecological Assessment :: Machine Learning"])
+                              "Topic :: Ecology :: Biomarker Selection :: Metagenomics :: Supervised Learning :: Unsupervised Learning :: Metabarcoding :: Biomonitoring :: Ecological Assessment :: Machine Learning"],
+                 )
