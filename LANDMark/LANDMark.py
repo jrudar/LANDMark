@@ -1,18 +1,66 @@
 import numpy as np
 
 #For fitting
-from .utils import BaggingClassifier
-from .score_fun import g_score
-
+from .utils import BaggingClassifier, stats, return_importance_scores
 from .tree import MTree
+import shap as sh
 
 #For class construction
 from sklearn.base import ClassifierMixin, BaseEstimator
-from abc import ABCMeta
+from sklearn.metrics import balanced_accuracy_score
 
+from abc import ABCMeta, abstractmethod
 from gc import collect
 
-class LANDMarkClassifier(ClassifierMixin, BaseEstimator, metaclass = ABCMeta):
+class LANDMarkModel(BaseEstimator, metaclass=ABCMeta):
+    """Base Class for all LANDMark Classification Models"""
+
+    def fit(self, X, y):
+        """Fits a LANDMark Model"""
+
+        return self._fit(X, y)
+
+    def predict(self, X):
+        """Predict Using a LANDMark Model"""
+
+        return self._predict(X)
+
+    def predict_proba(self, X):
+        """Return Class Probabilities Using a LANDMark Model"""
+
+        return self._predict_proba(X)
+
+    def score(self, X, y):
+        """Returns the Balanced Accuracy Score"""
+
+        return self._score(X)
+
+    def proximity(self):
+        """Returns the Tree Embedding"""
+
+        return self._proximity(X)
+
+    @abstractmethod
+    def _fit(self, X, y):
+        """Fits a LANDMark Model"""
+
+    @abstractmethod
+    def _predict(self, X):
+        """Predict Using a LANDMark Model"""
+
+    @abstractmethod
+    def _predict_proba(self, X):
+        """Return Class Probabilities Using a LANDMark Model"""
+
+    @abstractmethod
+    def _score(self, X, y):
+        """Returns the Balanced Accuracy Score"""
+
+    @abstractmethod
+    def _proximity(self):
+        """Returns the Tree Embedding"""
+
+class LANDMarkClassifier(ClassifierMixin, LANDMarkModel):
  
     def __init__(self, 
                  n_estimators = 64,
@@ -22,6 +70,12 @@ class LANDMarkClassifier(ClassifierMixin, BaseEstimator, metaclass = ABCMeta):
                  min_gain = 0,
                  impurity = "gain",
                  use_oracle = True,
+                 use_lm_l2 = True,
+                 use_lm_l1 = True,
+                 use_nnet = True,
+                 nnet_min_samples = 32,
+                 use_etc = True,
+                 bootstrap = False,
                  n_jobs = 4):
         
         #Tree construction parameters
@@ -32,10 +86,16 @@ class LANDMarkClassifier(ClassifierMixin, BaseEstimator, metaclass = ABCMeta):
         self.min_gain = min_gain
         self.impurity = impurity
         self.use_oracle = use_oracle
+        self.use_lm_l2 = use_lm_l2
+        self.use_lm_l1 = use_lm_l1
+        self.use_nnet = use_nnet
+        self.nnet_min_samples = nnet_min_samples
+        self.use_etc = use_etc
+        self.bootstrap = bootstrap
 
         self.n_jobs = n_jobs
-        
-    def fit(self, X, y):
+
+    def _fit(self, X, y):
         """
         Parameters
         -----------
@@ -47,42 +107,46 @@ class LANDMarkClassifier(ClassifierMixin, BaseEstimator, metaclass = ABCMeta):
         -----------
         self : object, the fitted model
         """
-        self.classes_ = np.asarray(list(set(y)))
-        self.classes_.sort()
+        self.classes_ = np.unique(y)
 
-        self.n_classes_ = len(self.classes_)
-           
-        #Fit a model
+        self.n_classes_ = self.classes_.shape[0]
+        
+        #Fit a model       
+        self.retained = np.asarray([True for i in range(X.shape[1])])
+        F_idx_current = np.asarray([i for i in range(X.shape[1])])
+
         self.estimators_ = BaggingClassifier(base_estimator = MTree(min_samples_in_leaf = self.min_samples_in_leaf,
                                                                     max_depth = self.max_depth,
                                                                     max_features = self.max_features,
                                                                     min_gain = self.min_gain,
                                                                     impurity = self.impurity,
-                                                                    use_oracle = self.use_oracle),
+                                                                    use_oracle = self.use_oracle,
+                                                                    bootstrap = self.bootstrap,
+                                                                    use_lm_l2 = self.use_lm_l2,
+                                                                    use_lm_l1 = self.use_lm_l1,
+                                                                    use_nnet = self.use_nnet,
+                                                                    nnet_min_samples = self.nnet_min_samples,
+                                                                    use_etc = self.use_etc),
                                              n_estimators = self.n_estimators,
-                                             n_samples = 1.0,
                                              n_jobs = self.n_jobs)
 
-        self.estimators_.fit(X, y)
+        self.estimators_.fit(X[:, self.retained], y)
 
         self.avg_depth = np.mean([estimator.max_depth for estimator in self.estimators_.estimators_])
 
-        #Calculate feature importances
-        self.feature_importances_ = []
-        for i, estimator in enumerate(self.estimators_.estimators_):
-            self.feature_importances_.append(estimator.feature_importances_)
+        #Get feature importance scores
+        self.feature_importances_ = np.zeros(shape = (X.shape[1],))
 
-        self.feature_importances_ = np.mean(self.feature_importances_, axis = 0)
+        feature_importances_ = return_importance_scores(self.estimators_.estimators_)
 
-        feature_sum = np.sum(self.feature_importances_)
-        if feature_sum > 0:
-            self.feature_importances_ = self.feature_importances_ / feature_sum
-        
+        for i, idx in enumerate(F_idx_current):
+            self.feature_importances_[idx] = feature_importances_[i]
+
         collect()
 
         return self
 
-    def predict(self, X):
+    def _predict(self, X):
         """
         Parameters
         -----------
@@ -92,13 +156,13 @@ class LANDMarkClassifier(ClassifierMixin, BaseEstimator, metaclass = ABCMeta):
         -----------
         predictions : Numpy array of predictions with shape (n_samples,)
         """
-        predictions = self.estimators_.predict(X)
+        predictions = self.estimators_.predict(X[:, self.retained])
 
         collect()
 
         return predictions
  
-    def predict_proba(self, X):
+    def _predict_proba(self, X):
         """
         Parameters
         -----------
@@ -108,40 +172,27 @@ class LANDMarkClassifier(ClassifierMixin, BaseEstimator, metaclass = ABCMeta):
         -----------
         predictions : Numpy array of probabilities with shape (n_samples, n_classes)
         """
-        predictions = self.estimators_.predict_proba(X)
+        predictions = self.estimators_.predict_proba(X[:, self.retained])
 
         collect()
 
         return predictions
 
-    def score(self, X, y):
+    def _score(self, X, y):
 
-        score = g_score(y,
-                        self.predict(X))
+        score = balanced_accuracy_score(y,
+                                        self.predict(X[:, self.retained]))
 
         collect()
 
         return score
 
-    def depth(self, X):
+    def _proximity(self, X):
 
         tree_mats = []
 
         for estimator in self.estimators_.estimators_:
-            tree_mats.append(estimator.depth(X))
-
-        emb = np.vstack(tree_mats)
-
-        collect()
-
-        return emb
-
-    def proximity(self, X):
-
-        tree_mats = []
-
-        for estimator in self.estimators_.estimators_:
-            tree_mats.append(estimator.proximity(X))
+            tree_mats.append(estimator.proximity(X[:, self.retained]))
 
         emb = np.hstack(tree_mats)
 
