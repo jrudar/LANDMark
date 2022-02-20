@@ -13,7 +13,7 @@ Once downloaded, go to the LANDMark directory and type:
         The minimum number of samples in each leaf to proceed to cutting.
         
     max_depth: int, default = -1
-        The maximum depth of the tree. '-1' implied that trees will fully
+        The maximum depth of the tree. '-1' implies that trees will fully
         grow until a stopping criterion is met.
         
     max_features: float, default = 0.80
