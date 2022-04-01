@@ -70,8 +70,8 @@ Once downloaded, go to the LANDMark directory and type:
 
 ### References
 
-    Rudar, J., Porter, T.M., Wright, M. et al. LANDMark: an ensemble approach to the 
-    supervised selection of biomarkers in high-throughput sequencing data. 
+    Rudar, J., Porter, T.M., Wright, M., Golding G.B., Hajibabaei, M. LANDMark: an ensemble 
+    approach to the supervised selection of biomarkers in high-throughput sequencing data. 
     BMC Bioinformatics 23, 110 (2022). https://doi.org/10.1186/s12859-022-04631-z
 
     Pedregosa F, Varoquaux G, Gramfort A, Michel V, Thirion B, Grisel O, et al. Scikit-learn: 
