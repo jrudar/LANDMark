@@ -57,7 +57,7 @@ class LANDMarkModel(BaseEstimator, metaclass=ABCMeta):
         """Returns the Balanced Accuracy Score"""
 
     @abstractmethod
-    def _proximity(self):
+    def _proximity(self, X):
         """Returns the Tree Embedding"""
 
 class LANDMarkClassifier(ClassifierMixin, LANDMarkModel):
