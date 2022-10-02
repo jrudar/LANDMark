@@ -1,7 +1,7 @@
 from distutils.core import setup
 
 setup(name="LANDMark",
-                 version="1.1.0",
+                 version="1.1.4",
                  author="Josip Rudar, Teresita M. Porter, Michael Wright, G. Brian Golding, Mehrdad Hajibabaei",
                  author_email="rudarj@uoguelph.ca",
                  description="LANDMark: An ensemble approach to the supervised selection of biomarkers in high-throughput sequencing data",
@@ -10,7 +10,7 @@ setup(name="LANDMark",
                  keywords = "biomarker selection, metagenomics, metabarcoding, biomonitoring, ecological assessment, machine learning, supervised learning, unsupervised learning",
                  packages=["LANDMark"],
                  python_requires = ">=3.8",
-                 install_requires = ["scikit-learn >= 1.1.5",
+                 install_requires = ["scikit-learn >= 1.1.4",
                                      "joblib >= 1.1.0",
                                      "shap >= 0.40.0",
                                      "numpy >= 1.19.2",
