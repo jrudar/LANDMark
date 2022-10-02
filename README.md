@@ -47,6 +47,11 @@ Once downloaded, go to the LANDMark directory and type:
         Specifies if Extremely Randomized Tree models should be trained. Could
         be used as an alternative to neural network models.
         
+    max_samples_tree: int, default = -1
+        Specifies the maximum number of samples used to construct each tree.
+        A stratified random sample is chosen to construct each tree. If '-1'
+        is selected, all samples are chosen.
+        
     bootstrap: bool, default = False
         Specifies if each tree is built using a bootstrap sample.
         
