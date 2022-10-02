@@ -1,16 +1,20 @@
 import logging
 import os
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
-os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true" 
-os.environ["TF_GPU_THREAD_MODE"] = "gpu_private" 
+import warnings
+from sklearn.exceptions import ConvergenceWarning
+warnings.filterwarnings("ignore", category=ConvergenceWarning, module = "sklearn")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module = "tensorflow")
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
+os.environ["TF_GPU_THREAD_MODE"] = "gpu_private"
 
 import tensorflow as tf
+logging.getLogger("shap").setLevel(logging.ERROR)
+tf.get_logger().setLevel("FATAL")
 
-logging.getLogger('tensorflow').setLevel(logging.FATAL)
-logging.getLogger('shap').setLevel(logging.FATAL)
-
-policy = tf.keras.mixed_precision.Policy('mixed_float16')
+policy = tf.keras.mixed_precision.Policy("mixed_float16")
 tf.keras.mixed_precision.set_global_policy(policy)
 
 from tensorflow.keras.models import Model, load_model
@@ -18,19 +22,29 @@ from tensorflow.keras.layers import Dense, Input, Dropout, Concatenate, Activati
 from tensorflow.keras.layers.experimental import RandomFourierFeatures
 from tensorflow.keras.callbacks import EarlyStopping
 
+from tensorflow_addons.layers import NoisyDense
 from tensorflow_addons.activations import mish
 from tensorflow_addons.optimizers import AdamW, Lookahead
-from gctf.centralized_gradients import centralized_gradients_for_optimizer
+from tensorflow_addons.losses import TripletSemiHardLoss
+
+from .utils import centralized_gradients_for_optimizer
 
 import numpy as np
 
-from sklearn.base import ClassifierMixin, BaseEstimator
+import pandas as pd
+
+from sklearn.base import ClassifierMixin, BaseEstimator, RegressorMixin
 from sklearn.preprocessing import OneHotEncoder
-from sklearn.linear_model import RidgeClassifierCV, LogisticRegressionCV, LogisticRegression, SGDClassifier, RidgeClassifier
+from sklearn.linear_model import (
+    RidgeClassifierCV,
+    LogisticRegressionCV,
+    LogisticRegression,
+    SGDClassifier,
+    RidgeClassifier,
+)
 from sklearn.svm import LinearSVC
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.utils import resample
-from sklearn.exceptions import ConvergenceWarning
 from sklearn.ensemble import ExtraTreesClassifier
 
 import shap as sh
@@ -39,15 +53,11 @@ from random import choice
 
 from math import ceil
 
-import warnings
-
-warnings.filterwarnings("ignore", category = ConvergenceWarning)
-
 from gc import collect
 
-class RandomOracle(ClassifierMixin, BaseEstimator):
 
-    def __init__(self, oracle = "Linear", n_feat = 0.8):
+class RandomOracle(ClassifierMixin, BaseEstimator):
+    def __init__(self, oracle="Linear", n_feat=0.8):
 
         self.oracle = "Linear"
         self.n_feat = n_feat
@@ -55,28 +65,34 @@ class RandomOracle(ClassifierMixin, BaseEstimator):
     def fit(self, X, y):
 
         if X.shape[1] >= 4:
-            self.features = np.random.choice([i for i in range(X.shape[1])],
-                                              size = ceil(X.shape[1] * self.n_feat),
-                                              replace = False)
+            self.features = np.random.choice(
+                [i for i in range(X.shape[1])],
+                size=ceil(X.shape[1] * self.n_feat),
+                replace=False,
+            )
 
         else:
             self.features = np.asarray([i for i in range(X.shape[1])])
 
         if self.oracle == "Linear":
-            #Select two points at random
-            index = np.random.choice([i for i in range(X.shape[0])], size = 2, replace = False) 
+            # Select two points at random
+            index = np.random.choice(
+                [i for i in range(X.shape[0])], size=2, replace=False
+            )
             x = X[index]
 
-            #Make sure two unique instances are chosen
-            while np.array_equal(x[0, self.features], x[1, self.features]): 
-                index = np.random.choice([i for i in range(X.shape[0])], size = 2, replace = False) 
+            # Make sure two unique instances are chosen
+            while np.array_equal(x[0, self.features], x[1, self.features]):
+                index = np.random.choice(
+                    [i for i in range(X.shape[0])], size=2, replace=False
+                )
                 x = X[index]
 
-            #Find the midpoint
-            midpoint = np.sum(x[:, self.features], axis = 0) * 0.5 
+            # Find the midpoint
+            midpoint = np.sum(x[:, self.features], axis=0) * 0.5
 
-            #Find the normal vector and intercept
-            self.weights = x[1, self.features] - x[0, self.features] 
+            # Find the normal vector and intercept
+            self.weights = x[1, self.features] - x[0, self.features]
             self.intercept = 0 - np.dot(self.weights.T, midpoint)
 
         return self
@@ -96,47 +112,59 @@ class RandomOracle(ClassifierMixin, BaseEstimator):
 
     def get_imp_scores(self, X):
 
-        explainer = sh.LinearExplainer((self.weights, self.intercept),
-                                       X[:, self.features])
+        explainer = sh.Explainer((self.weights, self.intercept),
+                                 masker = sh.maskers.Independent(X[:, self.features]))
 
-        raw_scores = explainer.shap_values(X[:, self.features])
+        scores = explainer(X[:, self.features], silent = True).values
 
-        scores = np.abs(raw_scores).mean(axis = 0)
+        #explainer = sh.LinearExplainer(
+         #   (self.weights, self.intercept), X[:, self.features]
+        #)
+
+        #raw_scores = explainer.shap_values(X[:, self.features])
+
+        scores = np.abs(scores).mean(axis=0)
 
         score_sum = scores.sum()
         if score_sum > 0:
             scores = scores / score_sum
 
-        final_features = np.zeros(shape = (X.shape[1]))
+        final_features = np.zeros(shape=(X.shape[1]))
         for i, loc in enumerate(self.features):
             final_features[loc] = scores[i]
 
         return final_features
 
+
 class ETClassifier(ClassifierMixin, BaseEstimator):
-    def __init__(self, n_feat = 0.8):
+    def __init__(self, n_feat=0.8, max_depth = 5, max_trees = 128):
 
         self.n_feat = n_feat
+        self.max_depth = max_depth
+        self.max_trees = max_trees
 
     def fit(self, X, y):
-    
+
         if X.shape[1] >= 4:
-            self.features = np.random.choice([i for i in range(X.shape[1])],
-                                              size = ceil(X.shape[1] * self.n_feat),
-                                              replace = False)
+            self.features = np.random.choice(
+                [i for i in range(X.shape[1])],
+                size=ceil(X.shape[1] * self.n_feat),
+                replace=False,
+            )
 
         else:
             self.features = np.asarray([i for i in range(X.shape[1])])
 
-        X_re, y_re = resample(X, y, n_samples = X.shape[0], stratify = y)
+        X_re, y_re = resample(X, y, n_samples=X.shape[0], stratify=y)
 
         X_re = X_re[:, self.features]
 
-        self.classes_, y_counts = np.unique(y_re, return_counts = True)
+        self.classes_, y_counts = np.unique(y_re, return_counts=True)
 
         y_min = min(y_counts)
 
-        clf_1 = ExtraTreesClassifier(128)
+        clf_1 = ExtraTreesClassifier(n_estimators = self.max_trees,
+                                     max_depth = self.max_depth)
 
         self.m_type = "nonlinear"
 
@@ -152,8 +180,8 @@ class ETClassifier(ClassifierMixin, BaseEstimator):
 
         return self.clf_model.predict_proba(X[:, self.features])
 
-    def get_imp_scores(self, X, hp = None):
-        
+    def get_imp_scores(self, X, hp=None):
+
         with warnings.catch_warnings():
 
             warnings.simplefilter("ignore")
@@ -163,52 +191,54 @@ class ETClassifier(ClassifierMixin, BaseEstimator):
             raw_scores = explainer(X[:, self.features]).values
 
             if self.classes_.shape[0] > 2:
-                scores = np.abs(raw_scores[:, :, hp]).mean(axis = 0)
+                scores = np.abs(raw_scores[:, :, hp]).mean(axis=0)
 
             else:
-                scores = np.abs(raw_scores[:, :, hp]).mean(axis = 0)
+                scores = np.abs(raw_scores[:, :, hp]).mean(axis=0)
 
             score_sum = scores.sum()
             if score_sum > 0:
                 scores = scores / score_sum
 
-            final_features = np.zeros(shape = (X.shape[1]))
+            final_features = np.zeros(shape=(X.shape[1]))
             for i, loc in enumerate(self.features):
                 final_features[loc] = scores[i]
 
         return final_features
 
-class LM2Classifier(ClassifierMixin, BaseEstimator):
 
-    def __init__(self, n_feat = 0.8):
+class LM2Classifier(ClassifierMixin, BaseEstimator):
+    def __init__(self, n_feat=0.8):
 
         self.n_feat = n_feat
 
     def fit(self, X, y):
-    
+
         if X.shape[1] >= 4:
-            self.features = np.random.choice([i for i in range(X.shape[1])],
-                                              size = ceil(X.shape[1] * self.n_feat),
-                                              replace = False)
+            self.features = np.random.choice(
+                [i for i in range(X.shape[1])],
+                size=ceil(X.shape[1] * self.n_feat),
+                replace=False,
+            )
 
         else:
             self.features = np.asarray([i for i in range(X.shape[1])])
 
-        X_re, y_re = resample(X, y, n_samples = X.shape[0], stratify = y)
+        X_re, y_re = resample(X, y, n_samples=X.shape[0], stratify=y)
 
         X_re = X_re[:, self.features]
 
-        #X_re, y_re = resample(X[:, self.features], y, n_samples = X.shape[0], stratify = y)
+        # X_re, y_re = resample(X[:, self.features], y, n_samples = X.shape[0], stratify = y)
 
-        self.classes_, y_counts = np.unique(y_re, return_counts = True)
+        self.classes_, y_counts = np.unique(y_re, return_counts=True)
 
         y_min = min(y_counts)
 
         if y_min > 6:
-            clf_1 = LogisticRegressionCV(max_iter = 2000, cv = 5)
+            clf_1 = LogisticRegressionCV(max_iter=2000, cv=5)
 
         else:
-            clf_1 = LogisticRegression(max_iter = 2000)
+            clf_1 = LogisticRegression(max_iter=2000)
 
         self.m_type = "denselinear"
 
@@ -224,66 +254,70 @@ class LM2Classifier(ClassifierMixin, BaseEstimator):
 
         return self.clf_model.decision_function(X[:, self.features])
 
-    def get_imp_scores(self, X, hp = None):
-        
+    def get_imp_scores(self, X, hp=None):
+
         with warnings.catch_warnings():
 
             warnings.simplefilter("ignore")
 
-            explainer = sh.Explainer(self.clf_model,
-                                     X[:, self.features])
+            explainer = sh.Explainer(self.clf_model, sh.maskers.Independent(X[:, self.features]))
 
-            raw_scores = explainer(X[:, self.features]).values#.abs.values
+            raw_scores = explainer(X[:, self.features],
+                                   silent = True).values  # .abs.values
 
             if self.classes_.shape[0] > 2:
-                scores = np.abs(raw_scores[:, :, hp]).mean(axis = 0)
+                scores = np.abs(raw_scores[:, :, hp]).mean(axis=0)
 
             else:
-                scores = np.abs(raw_scores).mean(axis = 0)
+                scores = np.abs(raw_scores).mean(axis=0)
 
             score_sum = scores.sum()
             if score_sum > 0:
                 scores = scores / score_sum
 
-            final_features = np.zeros(shape = (X.shape[1]))
+            final_features = np.zeros(shape=(X.shape[1]))
             for i, loc in enumerate(self.features):
                 final_features[loc] = scores[i]
 
         return final_features
 
-class LM1Classifier(ClassifierMixin, BaseEstimator):
 
-    def __init__(self, n_feat = 0.8):
+class LM1Classifier(ClassifierMixin, BaseEstimator):
+    def __init__(self, n_feat=0.8):
 
         self.n_feat = n_feat
 
     def fit(self, X, y):
-    
-        X_re, y_re = resample(X, y, n_samples = X.shape[0], stratify = y)
+
+        X_re, y_re = resample(X, y, n_samples=X.shape[0], stratify=y)
 
         solver = "liblinear"
         if X.shape[0] >= 500:
             solver = "saga"
 
         if X.shape[1] >= 4:
-            self.features = np.random.choice([i for i in range(X.shape[1])],
-                                              size = ceil(X.shape[1] * self.n_feat),
-                                              replace = False)
+            self.features = np.random.choice(
+                [i for i in range(X.shape[1])],
+                size=ceil(X.shape[1] * self.n_feat),
+                replace=False,
+            )
 
         else:
             self.features = np.asarray([i for i in range(X.shape[1])])
 
         X_re = X_re[:, self.features]
 
-        self.classes_, y_counts = np.unique(y_re, return_counts = True)
+        self.classes_, y_counts = np.unique(y_re, return_counts=True)
 
         y_min = min(y_counts)
 
         if y_min > 6:
-            clf_1 = LogisticRegressionCV(max_iter = 2000, cv = 5, solver = solver, penalty = "l1")
+            clf_1 = LogisticRegressionCV(
+                max_iter=2000, cv=5, solver=solver, penalty="l1"
+            )
 
         else:
-            clf_1 = LogisticRegression(max_iter = 2000, solver = solver, penalty = "l1")
+            clf_1 = LogisticRegression(max_iter=2000, solver=solver, penalty="l1")
 
         self.m_type = "sparselinear"
 
@@ -299,57 +333,59 @@ class LM1Classifier(ClassifierMixin, BaseEstimator):
 
         return self.clf_model.decision_function(X[:, self.features])
 
-    def get_imp_scores(self, X, hp = None):
-        
+    def get_imp_scores(self, X, hp=None):
+
         with warnings.catch_warnings():
 
             warnings.simplefilter("ignore")
 
-            explainer = sh.Explainer(self.clf_model,
-                                     X[:, self.features])
+            explainer = sh.Explainer(self.clf_model, sh.maskers.Independent(X[:, self.features]))
 
-            raw_scores = explainer(X[:, self.features]).values#.abs.values
+            raw_scores = explainer(X[:, self.features],
+                                   silent = True).values  # .abs.values
 
             if self.classes_.shape[0] > 2:
-                scores = np.abs(raw_scores[:, :, hp]).mean(axis = 0)
+                scores = np.abs(raw_scores[:, :, hp]).mean(axis=0)
 
             else:
-                scores = np.abs(raw_scores).mean(axis = 0)
+                scores = np.abs(raw_scores).mean(axis=0)
 
             score_sum = scores.sum()
             if score_sum > 0:
                 scores = scores / score_sum
 
-            final_features = np.zeros(shape = (X.shape[1]))
+            final_features = np.zeros(shape=(X.shape[1]))
             for i, loc in enumerate(self.features):
                 final_features[loc] = scores[i]
 
         return final_features
+
 
 class RMClassifier(ClassifierMixin, BaseEstimator):
-
-    def __init__(self, n_feat = 0.8):
+    def __init__(self, n_feat=0.8):
 
         self.n_feat = n_feat
 
     def fit(self, X, y):
 
         if X.shape[1] >= 4:
-            self.features = np.random.choice([i for i in range(X.shape[1])],
-                                              size = ceil(X.shape[1] * self.n_feat),
-                                              replace = False)
+            self.features = np.random.choice(
+                [i for i in range(X.shape[1])],
+                size=ceil(X.shape[1] * self.n_feat),
+                replace=False,
+            )
 
         else:
             self.features = np.asarray([i for i in range(X.shape[1])])
 
-        X_re, y_re = resample(X, y, n_samples = X.shape[0], stratify = y)
+        X_re, y_re = resample(X, y, n_samples=X.shape[0], stratify=y)
 
         X_re = X_re[:, self.features]
 
-        self.classes_, y_counts = np.unique(y_re, return_counts = True)
+        self.classes_, y_counts = np.unique(y_re, return_counts=True)
 
-        clf_1 = RidgeClassifierCV(alphas = (0.001, 0.01, 0.1, 1.0, 10, 100, 1000))
-        
+        clf_1 = RidgeClassifierCV(alphas=(0.001, 0.01, 0.1, 1.0, 10, 100, 1000))
+
         self.m_type = "denselinear"
 
         self.clf_model = clf_1.fit(X_re, y_re)
@@ -364,65 +400,69 @@ class RMClassifier(ClassifierMixin, BaseEstimator):
 
         return self.clf_model.decision_function(X[:, self.features])
 
-    def get_imp_scores(self, X, hp = None):
-        
+    def get_imp_scores(self, X, hp=None):
+
         with warnings.catch_warnings():
 
             warnings.simplefilter("ignore")
 
-            explainer = sh.Explainer(self.clf_model,
-                                     X[:, self.features])
+            explainer = sh.Explainer(self.clf_model, sh.maskers.Independent(X[:, self.features]))
 
-            raw_scores = explainer(X[:, self.features]).values#.abs.values
+            raw_scores = explainer(X[:, self.features],
+                                   silent = True).values  # .abs.values
 
             if self.classes_.shape[0] > 2:
-                scores = np.abs(raw_scores[:, :, hp]).mean(axis = 0)
+                scores = np.abs(raw_scores[:, :, hp]).mean(axis=0)
 
             else:
-                scores = np.abs(raw_scores).mean(axis = 0)
+                scores = np.abs(raw_scores).mean(axis=0)
 
             score_sum = scores.sum()
             if score_sum > 0:
                 scores = scores / score_sum
 
-            final_features = np.zeros(shape = (X.shape[1]))
+            final_features = np.zeros(shape=(X.shape[1]))
             for i, loc in enumerate(self.features):
                 final_features[loc] = scores[i]
 
         return final_features
-            
-class SVClassifier(ClassifierMixin, BaseEstimator):
 
-    def __init__(self, n_feat = 0.8):
+
+class SVClassifier(ClassifierMixin, BaseEstimator):
+    def __init__(self, n_feat=0.8):
 
         self.n_feat = n_feat
 
     def fit(self, X, y):
 
         if X.shape[1] >= 4:
-            self.features = np.random.choice([i for i in range(X.shape[1])],
-                                              size = ceil(X.shape[1] * self.n_feat),
-                                              replace = False)
+            self.features = np.random.choice(
+                [i for i in range(X.shape[1])],
+                size=ceil(X.shape[1] * self.n_feat),
+                replace=False,
+            )
 
         else:
             self.features = np.asarray([i for i in range(X.shape[1])])
 
-        X_re, y_re = resample(X, y, n_samples = X.shape[0], stratify = y)
+        X_re, y_re = resample(X, y, n_samples=X.shape[0], stratify=y)
 
         X_re = X_re[:, self.features]
 
-        self.classes_, y_counts = np.unique(y_re, return_counts = True)
+        self.classes_, y_counts = np.unique(y_re, return_counts=True)
 
         if min(y_counts) > 6:
-            self.cv = GridSearchCV(LinearSVC(max_iter = 2000),
-                                   param_grid={"C": [0.001, 0.01, 0.1, 1.0, 10, 100]},
-                                              cv = 5).fit(X_re, y_re)
+            self.cv = GridSearchCV(
+                LinearSVC(max_iter=2000),
+                param_grid={"C": [0.001, 0.01, 0.1, 1.0, 10, 100]},
+                cv=5,
+            ).fit(X_re, y_re)
 
             self.clf_model = self.cv.best_estimator_
 
         else:
-            self.clf_model = LinearSVC(max_iter = 2000).fit(X_re, y_re)
-        
+            self.clf_model = LinearSVC(max_iter=2000).fit(X_re, y_re)
+
         self.m_type = "denselinear"
 
         return self, self.decision_function(X)
@@ -435,66 +475,82 @@ class SVClassifier(ClassifierMixin, BaseEstimator):
 
         return self.clf_model.decision_function(X[:, self.features])
 
-    def get_imp_scores(self, X, hp = None):
-        
+    def get_imp_scores(self, X, hp=None):
+
         with warnings.catch_warnings():
 
             warnings.simplefilter("ignore")
 
-            explainer = sh.Explainer(self.clf_model,
-                                     X[:, self.features])
+            explainer = sh.Explainer(self.clf_model, sh.maskers.Independent(X[:, self.features]))
 
-            raw_scores = explainer(X[:, self.features]).values#.abs.values
+            raw_scores = explainer(X[:, self.features], silent = True).values  # .abs.values
 
             if self.classes_.shape[0] > 2:
-                scores = np.abs(raw_scores[:, :, hp]).mean(axis = 0)
+                scores = np.abs(raw_scores[:, :, hp]).mean(axis=0)
 
             else:
-                scores = np.abs(raw_scores).mean(axis = 0)
+                scores = np.abs(raw_scores).mean(axis=0)
 
             score_sum = scores.sum()
             if score_sum > 0:
                 scores = scores / score_sum
 
-            final_features = np.zeros(shape = (X.shape[1]))
+            final_features = np.zeros(shape=(X.shape[1]))
             for i, loc in enumerate(self.features):
                 final_features[loc] = scores[i]
 
         return final_features
 
-class SG1Classifier(ClassifierMixin, BaseEstimator):
 
-    def __init__(self, n_feat = 0.8):
+class SG1Classifier(ClassifierMixin, BaseEstimator):
+    def __init__(self, n_feat=0.8):
 
         self.n_feat = n_feat
 
     def fit(self, X, y):
 
-        X_re, y_re = resample(X, y, n_samples = X.shape[0], stratify = y)
+        X_re, y_re = resample(X, y, n_samples=X.shape[0], stratify=y)
 
         if X.shape[1] >= 4:
-            self.features = np.random.choice([i for i in range(X.shape[1])],
-                                              size = ceil(X.shape[1] * self.n_feat),
-                                              replace = False)
+            self.features = np.random.choice(
+                [i for i in range(X.shape[1])],
+                size=ceil(X.shape[1] * self.n_feat),
+                replace=False,
+            )
 
         else:
             self.features = np.asarray([i for i in range(X.shape[1])])
 
         X_re = X_re[:, self.features]
 
-        self.classes_, y_counts = np.unique(y_re, return_counts = True)
+        self.classes_, y_counts = np.unique(y_re, return_counts=True)
 
         if min(y_counts) > 6:
-            self.cv = GridSearchCV(SGDClassifier(max_iter = 2000, penalty = "elasticnet"),
-                                   param_grid={"alpha": [0.001, 0.01, 0.1, 1.0, 10, 100],
-                                               "loss": ["hinge", "modified_huber"]},
-                                               cv = 5).fit(X_re, y_re)
+            self.cv = GridSearchCV(
+                SGDClassifier(max_iter=2000, penalty="elasticnet"),
+                param_grid={
+                    "alpha": [0.001, 0.01, 0.1, 1.0, 10, 100],
+                    "loss": ["hinge", "modified_huber"],
+                },
+                cv=5,
+            ).fit(X_re, y_re)
 
             self.clf_model = self.cv.best_estimator_
 
         else:
-            clf = choice([SGDClassifier(alpha = 1.0, loss = "hinge", max_iter = 2000, penalty = "elasticnet"),
-                          SGDClassifier(alpha = 1.0, loss = "modified_huber", max_iter = 2000, penalty = "elasticnet")])
+            clf = choice(
+                [
+                    SGDClassifier(
+                        alpha=1.0, loss="hinge", max_iter=2000, penalty="elasticnet"
+                    ),
+                    SGDClassifier(
+                        alpha=1.0,
+                        loss="modified_huber",
+                        max_iter=2000,
+                        penalty="elasticnet",
+                    ),
+                ]
+            )
 
             self.clf_model = clf.fit(X_re, y_re)
 
@@ -510,68 +566,77 @@ class SG1Classifier(ClassifierMixin, BaseEstimator):
 
         return self.clf_model.decision_function(X[:, self.features])
 
-    def get_imp_scores(self, X, hp = None):
-        
+    def get_imp_scores(self, X, hp=None):
+
         with warnings.catch_warnings():
 
             warnings.simplefilter("ignore")
 
-            explainer = sh.Explainer(self.clf_model,
-                                     X[:, self.features])
+            explainer = sh.Explainer(self.clf_model, sh.maskers.Independent(X[:, self.features]))
 
-            raw_scores = explainer(X[:, self.features]).values#.abs.values
+            raw_scores = explainer(X[:, self.features], silent = True ).values  # .abs.values
 
             if self.classes_.shape[0] > 2:
-                scores = np.abs(raw_scores[:, :, hp]).mean(axis = 0)
+                scores = np.abs(raw_scores[:, :, hp]).mean(axis=0)
 
             else:
-                scores = np.abs(raw_scores).mean(axis = 0)
+                scores = np.abs(raw_scores).mean(axis=0)
 
             score_sum = scores.sum()
             if score_sum > 0:
                 scores = scores / score_sum
 
-            final_features = np.zeros(shape = (X.shape[1]))
+            final_features = np.zeros(shape=(X.shape[1]))
             for i, loc in enumerate(self.features):
                 final_features[loc] = scores[i]
 
         return final_features
 
-class SG2Classifier(ClassifierMixin, BaseEstimator):
 
-    def __init__(self, n_feat = 0.8):
+class SG2Classifier(ClassifierMixin, BaseEstimator):
+    def __init__(self, n_feat=0.8):
 
         self.n_feat = n_feat
 
     def fit(self, X, y):
 
         if X.shape[1] >= 4:
-            self.features = np.random.choice([i for i in range(X.shape[1])],
-                                              size = ceil(X.shape[1] * self.n_feat),
-                                              replace = False)
+            self.features = np.random.choice(
+                [i for i in range(X.shape[1])],
+                size=ceil(X.shape[1] * self.n_feat),
+                replace=False,
+            )
 
         else:
             self.features = np.asarray([i for i in range(X.shape[1])])
 
-        X_re, y_re = resample(X, y, n_samples = X.shape[0], stratify = y)
+        X_re, y_re = resample(X, y, n_samples=X.shape[0], stratify=y)
 
         X_re = X_re[:, self.features]
 
-        #X_re, y_re = resample(X[:, self.features], y, n_samples = X.shape[0], stratify = y)
+        # X_re, y_re = resample(X[:, self.features], y, n_samples = X.shape[0], stratify = y)
 
-        self.classes_, y_counts = np.unique(y_re, return_counts = True)
+        self.classes_, y_counts = np.unique(y_re, return_counts=True)
 
         if min(y_counts) > 6:
-            self.cv = GridSearchCV(SGDClassifier(max_iter = 2000),
-                                   param_grid={"alpha": [0.001, 0.01, 0.1, 1.0, 10, 100],
-                                               "loss": ["hinge", "modified_huber"]},
-                                               cv = 5).fit(X_re, y_re)
+            self.cv = GridSearchCV(
+                SGDClassifier(max_iter=2000),
+                param_grid={
+                    "alpha": [0.001, 0.01, 0.1, 1.0, 10, 100],
+                    "loss": ["hinge", "modified_huber"],
+                },
+                cv=5,
+            ).fit(X_re, y_re)
 
             self.clf_model = self.cv.best_estimator_
 
         else:
-            clf = choice([SGDClassifier(alpha = 1.0, loss = "hinge", max_iter = 2000),
-                          SGDClassifier(alpha = 1.0, loss = "modified_huber", max_iter = 2000)])
+            clf = choice(
+                [
+                    SGDClassifier(alpha=1.0, loss="hinge", max_iter=2000),
+                    SGDClassifier(alpha=1.0, loss="modified_huber", max_iter=2000),
+                ]
+            )
 
             self.clf_model = clf.fit(X_re, y_re)
 
@@ -587,51 +652,51 @@ class SG2Classifier(ClassifierMixin, BaseEstimator):
 
         return self.clf_model.decision_function(X[:, self.features])
 
-    def get_imp_scores(self, X, hp = None):
-        
+    def get_imp_scores(self, X, hp=None):
+
         with warnings.catch_warnings():
 
             warnings.simplefilter("ignore")
 
-            explainer = sh.Explainer(self.clf_model,
-                                     X[:, self.features])
+            explainer = sh.Explainer(self.clf_model, sh.maskers.Independent(X[:, self.features]))
 
-            raw_scores = explainer(X[:, self.features]).values#.abs.values
+            raw_scores = explainer(X[:, self.features], silent = True ).values  # .abs.values
 
             if self.classes_.shape[0] > 2:
-                scores = np.abs(raw_scores[:, :, hp]).mean(axis = 0)
+                scores = np.abs(raw_scores[:, :, hp]).mean(axis=0)
 
             else:
-                scores = np.abs(raw_scores).mean(axis = 0)
+                scores = np.abs(raw_scores).mean(axis=0)
 
             score_sum = scores.sum()
             if score_sum > 0:
                 scores = scores / score_sum
 
-            final_features = np.zeros(shape = (X.shape[1]))
+            final_features = np.zeros(shape=(X.shape[1]))
             for i, loc in enumerate(self.features):
                 final_features[loc] = scores[i]
 
         return final_features
 
 class ANNClassifier(ClassifierMixin, BaseEstimator):
+    def __init__(self, n_feat=0.8):
 
-    def __init__(self, n_feat = 0.8):
-        
         self.n_feat = n_feat
 
     def fit(self, X, y):
 
         self.m_type = "nonlinear"
 
-        self.classes_, _ = np.unique(y, return_counts = True)
+        self.classes_, _ = np.unique(y, return_counts=True)
 
-        y_transformer = OneHotEncoder().fit(y.reshape(-1,1))
+        y_transformer = OneHotEncoder().fit(y.reshape(-1, 1))
 
         if X.shape[1] >= 4:
-            self.features = np.random.choice([i for i in range(X.shape[1])],
-                                              size = ceil(X.shape[1] * self.n_feat),
-                                              replace = False)
+            self.features = np.random.choice(
+                [i for i in range(X.shape[1])],
+                size=ceil(X.shape[1] * self.n_feat),
+                replace=False,
+            )
 
         else:
             self.features = np.asarray([i for i in range(X.shape[1])])
@@ -639,135 +704,90 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
         X_trf = X[:, self.features].astype(np.float32)
 
         try:
-            X_t, X_v, y_t, y_v = train_test_split(X_trf, 
-                                                  y,
-                                                  train_size = 0.90,
-                                                  stratify = y)
+            X_t, X_v, y_t, y_v = train_test_split(X_trf, y, train_size=0.90, stratify=y)
 
         except:
-            X_idx = resample(np.asarray([i for i in range(X_trf.shape[0])]), 
-                             replace = False, 
-                             n_samples = int(0.90 * X.shape[0]), 
-                             stratify = y)
+            X_idx = resample(
+                np.asarray([i for i in range(X_trf.shape[0])]),
+                replace=False,
+                n_samples=int(0.90 * X.shape[0]),
+                stratify=y,
+            )
 
             X_t = X_trf[X_idx]
             y_t = y[X_idx]
 
             X_idx_v = np.asarray([i for i in range(X.shape[0]) if i not in X_idx])
             X_v = X_trf[X_idx_v]
-            y_v = y[X_idx_v] 
+            y_v = y[X_idx_v]
 
-        y_trf = y_transformer.transform(y_t.reshape(-1,1)).toarray().astype(np.int)
-        y_v = y_transformer.transform(y_v.reshape(-1,1)).toarray().astype(np.int)
-
-        def make_model2():
-
-            in_sz = 2
-
-            IN = Input(X_trf.shape[1])
-
-            RF_IN = RandomFourierFeatures(24, trainable = False, dtype = "float32")(IN)
-
-            RF_D1 = Dense(24,
-                         activation = mish)(RF_IN)
-
-            RF_D2 = Dense(24,
-                         activation = mish)(RF_D1)
-
-            RF_D3 = Dense(16,
-                         activation = mish)(RF_D2)
-
-            D1 = Dense(256,
-                       activation = mish)(IN)
-
-            DR1 = Dropout(0.2)(D1) #All dropout layers were AlphaDropout
-
-            D2 = Dense(128,
-                        activation = mish)(DR1)
-
-            DR2 = Dropout(0.2)(D2)
-
-            D3 = Dense(64,
-                        activation = mish
-                        )(DR2)
-
-            DR3 = Dropout(0.2)(D3)
-
-            D4 = Dense(48,
-                        activation = mish
-                        )(DR3)
-
-            D5 = Dense(24,
-                        activation = mish
-                        )(DR3)
-
-            C = Concatenate()([D5, RF_D3])
-
-            PRE_OUT = Dense(y_trf.shape[1])(C)
-
-            OUT = Activation("softmax",
-                            dtype = "float32",)(PRE_OUT)
-            
-            return IN, OUT
+        y_trf = y_transformer.transform(y_t.reshape(-1, 1)).toarray().astype(np.int)
+        y_v = y_transformer.transform(y_v.reshape(-1, 1)).toarray().astype(np.int)
 
         def make_model():
 
             IN = tf.keras.layers.Input(X_trf.shape[1])
 
-            R = tf.keras.layers.experimental.RandomFourierFeatures(1024, 
-                                                                   trainable = False,
-                                                                   dtype = "float32")(IN)
+            R = tf.keras.layers.experimental.RandomFourierFeatures(
+                1024, trainable=False, dtype="float32"
+            )(IN)
 
             R1 = tf.keras.layers.Dropout(0.5)(R)
 
-            OUT = tf.keras.layers.Dense(y_trf.shape[1] * 16,
-                                        activation = mish)(R1)
+            OUT = tf.keras.layers.Dense(y_trf.shape[1] * 16, activation=mish)(R1)
 
             OUT = tf.keras.layers.Dropout(0.25)(OUT)
 
-            OUT = tf.keras.layers.Dense(y_trf.shape[1],
-                                        activation = mish)(OUT)
+            OUT = tf.keras.layers.Dense(y_trf.shape[1], activation=mish)(OUT)
 
-            OUT = tf.keras.layers.Activation(activation = "softmax",
-                                             dtype = "float32")(OUT)
+            OUT = tf.keras.layers.Activation(activation="softmax", dtype="float32")(OUT)
 
             return IN, OUT
 
-        early_stop = EarlyStopping(monitor = "val_loss",
-                                   mode = "min",
-                                   patience = 40, #Should be hyper-parameter
-                                   min_delta = 0.001) #was 0.0001. Should be hyper-parameter
+        early_stop = EarlyStopping(
+            monitor="val_loss",
+            mode="min",
+            patience=40,  # Should be hyper-parameter
+            min_delta=0.001,
+        )  
 
         clf = make_model()
 
-        model = Model(clf[0],
-                      clf[1])
+        model = Model(clf[0], clf[1])
 
-        opt = Lookahead(AdamW(1e-4,
-                              beta_1 = 0.95)) #Simple Adam()
+        opt = Lookahead(AdamW(1e-4, beta_1=0.95))
 
-        opt.get_gradients = centralized_gradients_for_optimizer(opt) #Remove to revert
+        opt.get_gradients = centralized_gradients_for_optimizer(opt)
 
-        model.compile(optimizer = opt,
-                      loss = "categorical_crossentropy")
-         
-        train_data = tf.data.Dataset.from_tensor_slices((X_t.astype(np.float32), y_trf.astype(int)))
-        train_data = train_data.shuffle(buffer_size = X_t.shape[0], reshuffle_each_iteration=True)
+        model.compile(optimizer=opt, loss="categorical_crossentropy")
+
+        train_data = tf.data.Dataset.from_tensor_slices(
+            (X_t.astype(np.float32), y_trf.astype(int))
+        )
+        train_data = train_data.shuffle(
+            buffer_size=X_t.shape[0], reshuffle_each_iteration=True
+        )
         train_data = train_data.batch(32).prefetch(2)
 
-        valid_data = tf.data.Dataset.from_tensor_slices((X_v.astype(np.float32), y_v.astype(int))).batch(32)
+        valid_data = tf.data.Dataset.from_tensor_slices(
+            (X_v.astype(np.float32), y_v.astype(int))
+        ).batch(32)
 
-        model.fit(train_data,
-                  epochs = 300, 
-                  verbose = 0,
-                  callbacks = early_stop,
-                  validation_data = valid_data, 
-                  shuffle = True)
+        model.fit(
+            train_data,
+            epochs=300,
+            verbose=0,
+            callbacks=early_stop,
+            validation_data=valid_data,
+            shuffle=True,
+        )
 
         self.weights = model.get_weights()
         self.config = model.get_config()
 
-        full_data = tf.data.Dataset.from_tensor_slices(X[:, self.features].astype(np.float32)).batch(32)
+        full_data = tf.data.Dataset.from_tensor_slices(
+            X[:, self.features].astype(np.float32)
+        ).batch(32)
         D = model.predict(full_data)
 
         tf.keras.backend.clear_session()
@@ -776,11 +796,12 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
 
     def predict_proba(self, X):
 
-        clf_models = Model.from_config(self.config, 
-                                       custom_objects = {"RandomFourierFeatures": RandomFourierFeatures})
+        clf_models = Model.from_config(
+            self.config, custom_objects={"RandomFourierFeatures": RandomFourierFeatures}
+        )
         clf_models.set_weights(self.weights)
 
-        predictions = clf_models.predict(X[:, self.features], batch_size = 32)
+        predictions = clf_models.predict(X[:, self.features], batch_size=32)
 
         tf.keras.backend.clear_session()
 
@@ -788,32 +809,37 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
 
     def predict(self, X):
 
-        clf_models = Model.from_config(self.config, 
-                                       custom_objects = {"RandomFourierFeatures": RandomFourierFeatures})
+        clf_models = Model.from_config(
+            self.config, custom_objects={"RandomFourierFeatures": RandomFourierFeatures}
+        )
         clf_models.set_weights(self.weights)
 
-        predictions = clf_models.predict(X[:, self.features], batch_size = 32)
+        predictions = clf_models.predict(X[:, self.features], batch_size=32)
 
-        predictions = np.argmax(predictions, axis = 1)
-        
+        predictions = np.argmax(predictions, axis=1)
+
         predictions = np.asarray([self.classes_[entry] for entry in predictions])
-           
+
         tf.keras.backend.clear_session()
 
         return predictions
 
-    def get_imp_scores(self, X, hp = None):
+    def get_imp_scores(self, X, hp=None):
 
-        clf_models = Model.from_config(self.config, 
-                                       custom_objects = {"RandomFourierFeatures": RandomFourierFeatures})
+        clf_models = Model.from_config(
+            self.config, custom_objects={"RandomFourierFeatures": RandomFourierFeatures}
+        )
         clf_models.set_weights(self.weights)
 
-        sh.explainers._deep.deep_tf.op_handlers["Mish"] = sh.explainers._deep.deep_tf.nonlinearity_1d(0)
-        sh.explainers._deep.deep_tf.op_handlers["mish"] = sh.explainers._deep.deep_tf.nonlinearity_1d(0)
+        sh.explainers._deep.deep_tf.op_handlers[
+            "Mish"
+        ] = sh.explainers._deep.deep_tf.nonlinearity_1d(0)
+        sh.explainers._deep.deep_tf.op_handlers[
+            "mish"
+        ] = sh.explainers._deep.deep_tf.nonlinearity_1d(0)
 
-        sh_exp = sh.GradientExplainer(clf_models,
-                                      data = X[:, self.features])
-        
+        sh_exp = sh.GradientExplainer(clf_models, data=X[:, self.features])
+
         scores = np.abs(sh_exp.shap_values(X[:, self.features]))
 
         if self.classes_.shape[0] > 2:
@@ -822,9 +848,7 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
         else:
             scores = scores[0]
 
-        scores = scores.mean(axis = 0)
-
-        #scores = np.sum(scores, axis = 0).mean(axis = 0)
+        scores = scores.mean(axis=0)
 
         tf.keras.backend.clear_session()
 
@@ -832,7 +856,7 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
         if feature_sum > 0:
             scores = scores / feature_sum
 
-        final_features = np.zeros(shape = (X.shape[1]))
+        final_features = np.zeros(shape=(X.shape[1]))
         for i, loc in enumerate(self.features):
             final_features[loc] = scores[i]
 
@@ -841,3 +865,164 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
         collect()
 
         return scores
+
+import datetime
+
+class MultiTaskNN(RegressorMixin, BaseEstimator):
+    def __init__(self, feature_data):
+        
+        self.feature_data = feature_data
+
+    def fit(self, X, X_m):#X_t, X_lm):
+
+        n = X.shape[1]
+        r = X_m.shape[1]
+        
+        def disc_model(n_inputs, n_outputs, n_proj = 6):
+
+            #Create shared layers
+            IN = tf.keras.layers.Input(n_inputs)
+
+            D1 = NoisyDense(n_inputs,
+                            activation = mish,
+                            kernel_initializer = "he_normal",
+                            activity_regularizer = tf.keras.regularizers.L1L2(0.0001, 0.001)
+                            )(IN)
+
+            D1 = NoisyDense(640,
+                            activation = mish,
+                            kernel_initializer = "he_normal")(D1)
+
+            D1 = tf.keras.layers.Dropout(0.375)(D1)
+
+            D1 = tf.keras.layers.Dense(512,
+                            activation = mish,
+                            kernel_initializer = "he_normal")(D1)
+
+            D1 = tf.keras.layers.Dropout(0.375)(D1)
+
+            D1 = tf.keras.layers.Dense(288,
+                            activation = mish,
+                            kernel_initializer = "he_normal")(D1)
+
+            D1 = tf.keras.layers.Dropout(0.375)(D1)
+
+            D1 = tf.keras.layers.Dense(128,
+                            activation = mish,
+                            kernel_initializer = "he_normal")(D1)
+
+            D1 = tf.keras.layers.Dropout(0.375)(D1)
+
+            D1 = tf.keras.layers.Dense(64,
+                            activation = mish,
+                            kernel_initializer = "he_normal")(D1)
+
+            D1 = tf.keras.layers.Dropout(0.375)(D1)
+
+            D1 = tf.keras.layers.Dense(32,
+                            activation = mish,
+                            kernel_initializer = "he_normal")(D1)
+
+            E = tf.keras.layers.Dense(n_proj)(D1)
+
+            D2 = NoisyDense(32,
+                            activation = mish,
+                            kernel_initializer = "he_normal")(E)
+
+            D2 = tf.keras.layers.Dropout(0.375)(D2)
+
+            D2 = tf.keras.layers.Dense(48,
+                            activation = mish,
+                            kernel_initializer = "he_normal")(D2)
+
+            R_T = tf.keras.layers.Dense(n_outputs)(D2)
+
+            opt_r = Lookahead(AdamW(1e-4, learning_rate = 0.0001, beta_1=0.95))
+            opt_r.get_gradients = centralized_gradients_for_optimizer(opt_r)
+            R_model = Model(IN, R_T,) #R_M, R_LM])
+            R_model.compile(optimizer=opt_r, 
+                            loss = "mean_squared_error",
+                            metrics = "mean_squared_error",
+                            )
+
+            E_model = Model(IN, E) #was R_M
+
+            return R_model, E_model
+
+        r_model, model_emb = disc_model(n, r)
+
+        early_stop = EarlyStopping(
+            monitor="val_loss",
+            mode="min",
+            patience=40,  # Should be hyper-parameter
+            min_delta=0.001,
+        )  
+               
+        r_model.fit(
+            X, X_m,
+            batch_size = 16,
+            validation_split = 0.1,
+            shuffle = True,
+            epochs=2000,
+            verbose = 2,
+            #callbacks= [early_stop,] #tensorboard_callback]
+        )
+
+        self.history = r_model.history
+        self.model = model_emb
+        self.weights = model_emb.get_weights()
+        self.config = model_emb.get_config()
+
+        del r_model
+        del model_emb
+
+        tf.keras.backend.clear_session()
+        collect()
+
+        return self
+
+    def get_imp_scores(self, clf_models, X):
+
+        sh.explainers._deep.deep_tf.op_handlers[
+            "Mish"
+        ] = sh.explainers._deep.deep_tf.nonlinearity_1d(0)
+        sh.explainers._deep.deep_tf.op_handlers[
+            "mish"
+        ] = sh.explainers._deep.deep_tf.nonlinearity_1d(0)
+
+        sh_exp = sh.GradientExplainer(clf_models, data=X)
+
+        scores = sh_exp.shap_values(X)
+
+        collect()
+
+        return scores
+
+    def get_prediction(self, X):
+
+        clf_models = Model.from_config(self.config)
+        clf_models.set_weights(self.weights)        
+        
+        sh_exp = sh.GradientExplainer(clf_models, data=X)
+
+        del clf_models
+
+        tf.keras.backend.clear_session()
+        collect()
+
+        return scores
+
+    def predict_emb(self, X):
+
+        clf_models = Model.from_config(self.config)
+        clf_models.set_weights(self.weights)   
+        
+        predictions = clf_models.predict(X, batch_size=32)
+
+        tf.keras.backend.clear_session()
+
+        return predictions
+
+    def predict(self, X):
+
+        return self.predict_emb(X)

@@ -3,19 +3,28 @@ import numpy as np
 ##########################################################################################
 #For Bagging Classifier
 from sklearn.base import ClassifierMixin, BaseEstimator, clone
+from sklearn.utils import resample
 from joblib import Parallel, delayed, parallel_backend
 
-def _parallel_build(estimator, X, y):
+def _parallel_build(estimator, X, y, max_samples_tree):
 
-    trained_estimator = estimator.fit(X, y)
+    if X.shape[0] <= max_samples_tree or max_samples_tree == -1:
+        X_trf = X
+        y_trf = y
+
+    else:
+        X_trf, y_trf = resample(X, y, replace = True, n_samples = max_samples_tree, stratify = y)
+
+    trained_estimator = estimator.fit(X_trf, y_trf)
 
     return trained_estimator
 
 class BaggingClassifier(ClassifierMixin, BaseEstimator):
 
-    def __init__(self, base_estimator, n_estimators, n_jobs):
+    def __init__(self, base_estimator, max_samples_tree, n_estimators, n_jobs):
 
         self.base_estimator = base_estimator
+        self.max_samples_tree = max_samples_tree
         self.n_estimators = n_estimators
         self.n_jobs = n_jobs
 
@@ -24,10 +33,15 @@ class BaggingClassifier(ClassifierMixin, BaseEstimator):
         self.classes_ = np.asarray(list(set(y)))
         self.classes_.sort()
             
-        self.estimators_ = Parallel(n_jobs = self.n_jobs)(delayed(_parallel_build)(clone(self.base_estimator), 
-                                                                                   X, 
-                                                                                   y)
-                                                          for i in range(self.n_estimators))
+        if self.n_jobs > 1:
+            self.estimators_ = Parallel(n_jobs = self.n_jobs)(delayed(_parallel_build)(clone(self.base_estimator), 
+                                                                                       X, 
+                                                                                       y,
+                                                                                       self.max_samples_tree)
+                                                              for i in range(self.n_estimators))
+
+        else:
+            self.estimators_ = [_parallel_build(clone(self.base_estimator), X, y, self.max_samples_tree) for _ in range(self.n_estimators)]
 
         return self
 
@@ -35,8 +49,12 @@ class BaggingClassifier(ClassifierMixin, BaseEstimator):
     
         class_map = {entry: i for i, entry in enumerate(self.classes_)}
 
-        prediction_results = Parallel(self.n_jobs)(delayed(self.estimators_[i].predict)(X)
-                                                   for i in range(self.n_estimators))
+        if self.n_jobs > 1:
+            prediction_results = Parallel(self.n_jobs)(delayed(self.estimators_[i].predict)(X)
+                                                       for i in range(self.n_estimators))
+
+        else:
+            prediction_results = [self.estimators_[i].predict(X) for i in range(self.n_estimators)]
 
         prediction_results = np.asarray(prediction_results)
 
@@ -85,10 +103,7 @@ class BaggingClassifier(ClassifierMixin, BaseEstimator):
         return prediction_probs
 
 ##########################################################################################
-#For LANDMark and LANDMarkRFE
-from scipy.stats import ttest_ind
-from statsmodels.stats.multitest import multipletests
-from scipy.stats import rankdata
+#For LANDMark
 
 def return_importance_scores(model):
 
@@ -105,77 +120,80 @@ def return_importance_scores(model):
 
     return feature_importances
 
-def stats(X, y, n_feat, n_groups, p_1, p_2, iteration):
-
-    if iteration == 0:
-        alpha = p_1
-
-    else:
-        alpha = p_2
-
-    y_unique, y_counts = np.unique(y, return_counts = True)
-
-    P = []
-    for i in range(n_feat):
-        for group_a in range(0, n_groups-1):
-           
-            comparison = X[:, :, group_a]
-
-            a = np.where(y == y_unique[group_a], True, False)
-
-            comp_a = comparison[a, i]
-
-            multi_p = []
-            for group_b in range(group_a + 1, n_groups):
-                b = np.where(y == y_unique[group_b], True, False)
-
-                comp_b = comparison[b, i]
-
-                comb = np.hstack((comp_a, comp_b))
-
-                if np.all(np.where(comb == comp_a[0], True, False)):
-                    P.append(0.99)
-
-                else:        
-                    """
-                    Use Welch t-test on ranks.
-                    Ruxton GD. 2006. the unequal variance t-test is an underused alternative 
-                    to Student’s t-test and the Mann–Whitney U test. Behavioral Ecology. 
-                    doi:10.1093/beheco/ark016
-                    """
-                    y_stacked = np.hstack((y[a], y[b]))
-                    y_ind = np.asarray([i for i in range(y_stacked.shape[0])])
-                    ranked = rankdata(comb)
-
-                    X_a = ranked[y_ind[np.where(y_stacked == y_unique[group_a], True, False)]]
-                    X_b = ranked[y_ind[np.where(y_stacked == y_unique[group_b], True, False)]]
-
-                    _, p_value = ttest_ind(X_a,
-                                           X_b,
-                                           axis = None,
-                                           equal_var = False)
-
-                    if n_groups == 2:
-                        P.append(p_value)
-
-                    else:
-                        multi_p.append(p_value)
-                
-            if n_groups > 2:
-                corrected_p = multipletests(multi_p, alpha, method = "bh")
-                P.append(corrected_p[1].min())
-
-    #Filtering
-    if iteration < 2:
-        retained_new = multipletests(P, 
-                                     alpha = alpha, 
-                                     method = "fdr_tsbky")[0]
-
-    else:
-        retained_new = multipletests(P, 
-                                     alpha = p_2, 
-                                     method = "fdr_tsbh")[0]
-
-    return retained_new
-
 ##########################################################################################
+import tensorflow as tf
+import keras.backend as K
+
+def get_centralized_gradients(optimizer, loss, params):
+    """Compute the centralized gradients.
+
+    From: https://github.com/Rishit-dagli/Gradient-Centralization-TensorFlow
+
+    This function is ideally not meant to be used directly unless you are building a custom optimizer, in which case you
+    could point `get_gradients` to this function. This is a modified version of
+    `tf.keras.optimizers.Optimizer.get_gradients`.
+
+    # Arguments:
+        optimizer: a `tf.keras.optimizers.Optimizer object`. The optimizer you are using.
+        loss: Scalar tensor to minimize.
+        params: List of variables.
+
+    # Returns:
+      A gradients tensor.
+
+    # Reference:
+        [Yong et al., 2020](https://arxiv.org/abs/2004.01461)
+    """
+
+    # We here just provide a modified get_gradients() function since we are trying to just compute the centralized
+    # gradients at this stage which can be used in other optimizers.
+    grads = []
+    for grad in K.gradients(loss, params):
+        grad_len = len(grad.shape)
+        if grad_len > 1:
+            axis = list(range(grad_len - 1))
+            grad -= tf.reduce_mean(grad,
+                                   axis=axis,
+                                   keep_dims=True)
+        grads.append(grad)
+
+    if None in grads:
+        raise ValueError('An operation has `None` for gradient. '
+                         'Please make sure that all of your ops have a '
+                         'gradient defined (i.e. are differentiable). '
+                         'Common ops without gradient: '
+                         'K.argmax, K.round, K.eval.')
+    if hasattr(optimizer, 'clipnorm') and optimizer.clipnorm > 0:
+        norm = K.sqrt(sum([K.sum(K.square(g)) for g in grads]))
+        grads = [
+            tf.keras.optimizers.clip_norm(
+                g,
+                optimizer.clipnorm,
+                norm) for g in grads]
+    if hasattr(optimizer, 'clipvalue') and optimizer.clipvalue > 0:
+        grads = [K.clip(g, -optimizer.clipvalue, optimizer.clipvalue)
+                 for g in grads]
+    return grads
+
+
+def centralized_gradients_for_optimizer(optimizer):
+    """Create a centralized gradients functions for a specified optimizer.
+
+    From: From: https://github.com/Rishit-dagli/Gradient-Centralization-TensorFlow
+
+    # Arguments:
+        optimizer: a `tf.keras.optimizers.Optimizer object`. The optimizer you are using.
+
+    # Usage:
+
+    ```py
+    >>> opt = tf.keras.optimizers.Adam(learning_rate=0.1)
+    >>> opt.get_gradients = gctf.centralized_gradients_for_optimizer(opt)
+    >>> model.compile(optimizer = opt, ...)
+    ```
+    """
+
+    def get_centralized_gradients_for_optimizer(loss, params):
+        return get_centralized_gradients(optimizer, loss, params)
+
+    return get_centralized_gradients_for_optimizer

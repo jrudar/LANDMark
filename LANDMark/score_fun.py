@@ -5,7 +5,8 @@ from numba import jit
 from numpy import float as np_float
 from numpy import mean, var, sqrt
 
-@jit(nopython = True)
+
+@jit(nopython=True)
 def g_score_compiled(c_matrix):
 
     num_sum = 0.0
@@ -13,7 +14,7 @@ def g_score_compiled(c_matrix):
     for i in range(c_matrix.shape[0]):
         row_sum = c_matrix[i, :].sum()
         col_sum = c_matrix[:, i].sum()
-       
+
         if row_sum >= col_sum:
             num_sum += c_matrix[i, i] / row_sum
 
@@ -24,7 +25,8 @@ def g_score_compiled(c_matrix):
 
     return S
 
-#Calculate the Glimmer Score
+
+# Calculate the Glimmer Score
 def g_score(y_true, y_pred):
     """
     Calculates the Glimmer Accuracy.
