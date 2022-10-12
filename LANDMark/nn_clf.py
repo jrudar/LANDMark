@@ -24,7 +24,6 @@ from tensorflow.keras.layers import Dense, Input, Dropout, Concatenate, Activati
 from tensorflow.keras.layers.experimental import RandomFourierFeatures
 from tensorflow.keras.callbacks import EarlyStopping
 
-from tensorflow_addons.layers import NoisyDense
 from tensorflow_addons.activations import mish
 from tensorflow_addons.optimizers import AdamW, Lookahead
 
