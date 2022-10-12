@@ -13,7 +13,7 @@ setup(
     python_requires=">=3.10",
     install_requires=[
         "scikit-learn == 1.1.2",
-        "joblib == 1.1.0",
+        "joblib == 1.2.0",
         "shap == 0.40.0",
         "numpy == 1.23.3",
         "tensorflow_addons == 0.18.0",
