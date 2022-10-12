@@ -24,11 +24,11 @@ from .nn_clf import (
 )
 
 
-def purity_function(N, N_lab, L, R, y, purity_fun = "gain"):
+def purity_function(N, N_lab, L, R, y, purity_fun="gain"):
 
     # Calculate Information Gain
     if purity_fun == "gain":
-        
+
         L_outcome, L_counts = np.unique(y[L], return_counts=True)
         L_prob = L_counts / L_counts.sum()
         H_L = entropy(L_prob) * (L_counts.sum() / N)
@@ -242,7 +242,9 @@ class Node:
                         # Calculate Information Gain
                         if X_L_n > 0 and X_R_n > 0:
 
-                            IG = purity_function(self.N, counts_prob, L, R, y, self.impurity)
+                            IG = purity_function(
+                                self.N, counts_prob, L, R, y, self.impurity
+                            )
 
                             gains.append(IG)
                             hyperplane_list.append((model, L, R))
@@ -268,7 +270,9 @@ class Node:
                         # Calculate Information Gain
                         if X_L_n > 0 and X_R_n > 0:
 
-                            IG = purity_function(self.N, counts_prob, L, R, y, self.impurity)
+                            IG = purity_function(
+                                self.N, counts_prob, L, R, y, self.impurity
+                            )
 
                             gains.append(IG)
                             hyperplane_list.append((model, L, R))
@@ -292,7 +296,9 @@ class Node:
                             # Calculate Information Gain
                             if X_L_n > 0 and X_R_n > 0:
 
-                                IG = purity_function(self.N, counts_prob, L, R, y, self.impurity)
+                                IG = purity_function(
+                                    self.N, counts_prob, L, R, y, self.impurity
+                                )
 
                                 gains.append(IG)
                                 hyperplane_list.append((model, L, R))
@@ -300,9 +306,13 @@ class Node:
 
                 # Train Decision Tree Models
                 if self.use_etc == True:
-                    for clf in [ETClassifier(n_feat=self.max_features,
-                                             max_depth = self.etc_max_depth,
-                                             max_trees = self.etc_max_trees)]:
+                    for clf in [
+                        ETClassifier(
+                            n_feat=self.max_features,
+                            max_depth=self.etc_max_depth,
+                            max_trees=self.etc_max_trees,
+                        )
+                    ]:
                         model, D = clf.fit(X, y)
 
                         if D.ndim > 1:
@@ -317,8 +327,10 @@ class Node:
                         # Calculate Information Gain
                         if X_L_n > 0 and X_R_n > 0:
 
-                            IG = purity_function(self.N, counts_prob, L, R, y, self.impurity)
-                            
+                            IG = purity_function(
+                                self.N, counts_prob, L, R, y, self.impurity
+                            )
+
                             gains.append(IG)
                             hyperplane_list.append((model, L, R))
                             model_type.append(model.m_type)
@@ -416,7 +428,7 @@ class MTree(ClassifierMixin, BaseEstimator):
         nnet_min_samples,
         use_etc,
         etc_max_depth,
-        etc_max_trees
+        etc_max_trees,
     ):
 
         self.min_samples_in_leaf = min_samples_in_leaf

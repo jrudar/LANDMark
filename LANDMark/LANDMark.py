@@ -11,6 +11,7 @@ from sklearn.metrics import balanced_accuracy_score
 from abc import ABCMeta, abstractmethod
 from gc import collect
 
+
 class LANDMarkModel(BaseEstimator, metaclass=ABCMeta):
     """Base Class for all LANDMark Classification Models"""
 
@@ -59,6 +60,7 @@ class LANDMarkModel(BaseEstimator, metaclass=ABCMeta):
     def _proximity(self):
         """Returns the Tree Embedding"""
 
+
 class LANDMarkClassifier(ClassifierMixin, LANDMarkModel):
     def __init__(
         self,
@@ -74,13 +76,13 @@ class LANDMarkClassifier(ClassifierMixin, LANDMarkModel):
         use_nnet=True,
         nnet_min_samples=32,
         use_etc=True,
-        etc_max_depth = 5,
-        etc_max_trees = 128,
-        max_samples_tree = -1,
+        etc_max_depth=5,
+        etc_max_trees=128,
+        max_samples_tree=-1,
         bootstrap=False,
         n_jobs=4,
     ):
-        
+
         # Tree construction parameters
         self.n_estimators = n_estimators
         self.min_samples_in_leaf = min_samples_in_leaf
@@ -132,10 +134,10 @@ class LANDMarkClassifier(ClassifierMixin, LANDMarkModel):
                 use_nnet=self.use_nnet,
                 nnet_min_samples=self.nnet_min_samples,
                 use_etc=self.use_etc,
-                etc_max_depth = self.etc_max_depth,
-                etc_max_trees = self.etc_max_trees
+                etc_max_depth=self.etc_max_depth,
+                etc_max_trees=self.etc_max_trees,
             ),
-            max_samples_tree = self.max_samples_tree,
+            max_samples_tree=self.max_samples_tree,
             n_estimators=self.n_estimators,
             n_jobs=self.n_jobs,
         )
@@ -147,7 +149,9 @@ class LANDMarkClassifier(ClassifierMixin, LANDMarkModel):
         )
 
         # Get feature importance scores
-        self.feature_importances_ = return_importance_scores(self.estimators_.estimators_)
+        self.feature_importances_ = return_importance_scores(
+            self.estimators_.estimators_
+        )
 
         collect()
 
