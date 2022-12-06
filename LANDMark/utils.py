@@ -33,8 +33,7 @@ class BaggingClassifier(ClassifierMixin, BaseEstimator):
 
     def fit(self, X, y):
 
-        self.classes_ = np.asarray(list(set(y)))
-        self.classes_.sort()
+        self.classes_ = np.unique(y)
 
         if self.n_jobs > 1:
             self.estimators_ = Parallel(n_jobs=self.n_jobs)(
