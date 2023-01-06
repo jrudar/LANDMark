@@ -3,16 +3,14 @@ import os
 
 import warnings
 from sklearn.exceptions import ConvergenceWarning
-
-warnings.filterwarnings("ignore", category=ConvergenceWarning, module="sklearn")
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="tensorflow")
+warnings.filterwarnings("ignore", category=ConvergenceWarning, module = "sklearn")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module = "tensorflow")
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 os.environ["TF_GPU_THREAD_MODE"] = "gpu_private"
 
 import tensorflow as tf
-
 logging.getLogger("shap").setLevel(logging.ERROR)
 tf.get_logger().setLevel("FATAL")
 
@@ -24,8 +22,10 @@ from tensorflow.keras.layers import Dense, Input, Dropout, Concatenate, Activati
 from tensorflow.keras.layers.experimental import RandomFourierFeatures
 from tensorflow.keras.callbacks import EarlyStopping
 
+from tensorflow_addons.layers import NoisyDense
 from tensorflow_addons.activations import mish
 from tensorflow_addons.optimizers import AdamW, Lookahead
+from tensorflow_addons.losses import TripletSemiHardLoss
 
 from .utils import centralized_gradients_for_optimizer
 
@@ -112,12 +112,16 @@ class RandomOracle(ClassifierMixin, BaseEstimator):
 
     def get_imp_scores(self, X):
 
-        explainer = sh.Explainer(
-            (self.weights, self.intercept),
-            masker=sh.maskers.Independent(X[:, self.features]),
-        )
+        explainer = sh.Explainer((self.weights, self.intercept),
+                                 masker = sh.maskers.Independent(X[:, self.features]))
 
-        scores = explainer(X[:, self.features], silent=True).values
+        scores = explainer(X[:, self.features], silent = True).values
+
+        #explainer = sh.LinearExplainer(
+         #   (self.weights, self.intercept), X[:, self.features]
+        #)
+
+        #raw_scores = explainer.shap_values(X[:, self.features])
 
         scores = np.abs(scores).mean(axis=0)
 
@@ -133,7 +137,7 @@ class RandomOracle(ClassifierMixin, BaseEstimator):
 
 
 class ETClassifier(ClassifierMixin, BaseEstimator):
-    def __init__(self, n_feat=0.8, max_depth=5, max_trees=128):
+    def __init__(self, n_feat=0.8, max_depth = 5, max_trees = 128):
 
         self.n_feat = n_feat
         self.max_depth = max_depth
@@ -159,9 +163,8 @@ class ETClassifier(ClassifierMixin, BaseEstimator):
 
         y_min = min(y_counts)
 
-        clf_1 = ExtraTreesClassifier(
-            n_estimators=self.max_trees, max_depth=self.max_depth
-        )
+        clf_1 = ExtraTreesClassifier(n_estimators = self.max_trees,
+                                     max_depth = self.max_depth)
 
         self.m_type = "nonlinear"
 
@@ -257,13 +260,10 @@ class LM2Classifier(ClassifierMixin, BaseEstimator):
 
             warnings.simplefilter("ignore")
 
-            explainer = sh.Explainer(
-                self.clf_model, sh.maskers.Independent(X[:, self.features])
-            )
+            explainer = sh.Explainer(self.clf_model, sh.maskers.Independent(X[:, self.features]))
 
-            raw_scores = explainer(
-                X[:, self.features], silent=True
-            ).values  # .abs.values
+            raw_scores = explainer(X[:, self.features],
+                                   silent = True).values  # .abs.values
 
             if self.classes_.shape[0] > 2:
                 scores = np.abs(raw_scores[:, :, hp]).mean(axis=0)
@@ -339,13 +339,10 @@ class LM1Classifier(ClassifierMixin, BaseEstimator):
 
             warnings.simplefilter("ignore")
 
-            explainer = sh.Explainer(
-                self.clf_model, sh.maskers.Independent(X[:, self.features])
-            )
+            explainer = sh.Explainer(self.clf_model, sh.maskers.Independent(X[:, self.features]))
 
-            raw_scores = explainer(
-                X[:, self.features], silent=True
-            ).values  # .abs.values
+            raw_scores = explainer(X[:, self.features],
+                                   silent = True).values  # .abs.values
 
             if self.classes_.shape[0] > 2:
                 scores = np.abs(raw_scores[:, :, hp]).mean(axis=0)
@@ -409,13 +406,10 @@ class RMClassifier(ClassifierMixin, BaseEstimator):
 
             warnings.simplefilter("ignore")
 
-            explainer = sh.Explainer(
-                self.clf_model, sh.maskers.Independent(X[:, self.features])
-            )
+            explainer = sh.Explainer(self.clf_model, sh.maskers.Independent(X[:, self.features]))
 
-            raw_scores = explainer(
-                X[:, self.features], silent=True
-            ).values  # .abs.values
+            raw_scores = explainer(X[:, self.features],
+                                   silent = True).values  # .abs.values
 
             if self.classes_.shape[0] > 2:
                 scores = np.abs(raw_scores[:, :, hp]).mean(axis=0)
@@ -487,13 +481,9 @@ class SVClassifier(ClassifierMixin, BaseEstimator):
 
             warnings.simplefilter("ignore")
 
-            explainer = sh.Explainer(
-                self.clf_model, sh.maskers.Independent(X[:, self.features])
-            )
+            explainer = sh.Explainer(self.clf_model, sh.maskers.Independent(X[:, self.features]))
 
-            raw_scores = explainer(
-                X[:, self.features], silent=True
-            ).values  # .abs.values
+            raw_scores = explainer(X[:, self.features], silent = True).values  # .abs.values
 
             if self.classes_.shape[0] > 2:
                 scores = np.abs(raw_scores[:, :, hp]).mean(axis=0)
@@ -582,13 +572,9 @@ class SG1Classifier(ClassifierMixin, BaseEstimator):
 
             warnings.simplefilter("ignore")
 
-            explainer = sh.Explainer(
-                self.clf_model, sh.maskers.Independent(X[:, self.features])
-            )
+            explainer = sh.Explainer(self.clf_model, sh.maskers.Independent(X[:, self.features]))
 
-            raw_scores = explainer(
-                X[:, self.features], silent=True
-            ).values  # .abs.values
+            raw_scores = explainer(X[:, self.features], silent = True ).values  # .abs.values
 
             if self.classes_.shape[0] > 2:
                 scores = np.abs(raw_scores[:, :, hp]).mean(axis=0)
@@ -672,13 +658,9 @@ class SG2Classifier(ClassifierMixin, BaseEstimator):
 
             warnings.simplefilter("ignore")
 
-            explainer = sh.Explainer(
-                self.clf_model, sh.maskers.Independent(X[:, self.features])
-            )
+            explainer = sh.Explainer(self.clf_model, sh.maskers.Independent(X[:, self.features]))
 
-            raw_scores = explainer(
-                X[:, self.features], silent=True
-            ).values  # .abs.values
+            raw_scores = explainer(X[:, self.features], silent = True ).values  # .abs.values
 
             if self.classes_.shape[0] > 2:
                 scores = np.abs(raw_scores[:, :, hp]).mean(axis=0)
@@ -695,7 +677,6 @@ class SG2Classifier(ClassifierMixin, BaseEstimator):
                 final_features[loc] = scores[i]
 
         return final_features
-
 
 class ANNClassifier(ClassifierMixin, BaseEstimator):
     def __init__(self, n_feat=0.8):
@@ -768,7 +749,7 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
             mode="min",
             patience=40,  # Should be hyper-parameter
             min_delta=0.001,
-        )
+        )  
 
         clf = make_model()
 
@@ -884,3 +865,164 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
         collect()
 
         return scores
+
+import datetime
+
+class MultiTaskNN(RegressorMixin, BaseEstimator):
+    def __init__(self, feature_data):
+        
+        self.feature_data = feature_data
+
+    def fit(self, X, X_m):#X_t, X_lm):
+
+        n = X.shape[1]
+        r = X_m.shape[1]
+        
+        def disc_model(n_inputs, n_outputs, n_proj = 6):
+
+            #Create shared layers
+            IN = tf.keras.layers.Input(n_inputs)
+
+            D1 = NoisyDense(n_inputs,
+                            activation = mish,
+                            kernel_initializer = "he_normal",
+                            activity_regularizer = tf.keras.regularizers.L1L2(0.0001, 0.001)
+                            )(IN)
+
+            D1 = NoisyDense(640,
+                            activation = mish,
+                            kernel_initializer = "he_normal")(D1)
+
+            D1 = tf.keras.layers.Dropout(0.375)(D1)
+
+            D1 = tf.keras.layers.Dense(512,
+                            activation = mish,
+                            kernel_initializer = "he_normal")(D1)
+
+            D1 = tf.keras.layers.Dropout(0.375)(D1)
+
+            D1 = tf.keras.layers.Dense(288,
+                            activation = mish,
+                            kernel_initializer = "he_normal")(D1)
+
+            D1 = tf.keras.layers.Dropout(0.375)(D1)
+
+            D1 = tf.keras.layers.Dense(128,
+                            activation = mish,
+                            kernel_initializer = "he_normal")(D1)
+
+            D1 = tf.keras.layers.Dropout(0.375)(D1)
+
+            D1 = tf.keras.layers.Dense(64,
+                            activation = mish,
+                            kernel_initializer = "he_normal")(D1)
+
+            D1 = tf.keras.layers.Dropout(0.375)(D1)
+
+            D1 = tf.keras.layers.Dense(32,
+                            activation = mish,
+                            kernel_initializer = "he_normal")(D1)
+
+            E = tf.keras.layers.Dense(n_proj)(D1)
+
+            D2 = NoisyDense(32,
+                            activation = mish,
+                            kernel_initializer = "he_normal")(E)
+
+            D2 = tf.keras.layers.Dropout(0.375)(D2)
+
+            D2 = tf.keras.layers.Dense(48,
+                            activation = mish,
+                            kernel_initializer = "he_normal")(D2)
+
+            R_T = tf.keras.layers.Dense(n_outputs)(D2)
+
+            opt_r = Lookahead(AdamW(1e-4, learning_rate = 0.0001, beta_1=0.95))
+            opt_r.get_gradients = centralized_gradients_for_optimizer(opt_r)
+            R_model = Model(IN, R_T,) #R_M, R_LM])
+            R_model.compile(optimizer=opt_r, 
+                            loss = "mean_squared_error",
+                            metrics = "mean_squared_error",
+                            )
+
+            E_model = Model(IN, E) #was R_M
+
+            return R_model, E_model
+
+        r_model, model_emb = disc_model(n, r)
+
+        early_stop = EarlyStopping(
+            monitor="val_loss",
+            mode="min",
+            patience=40,  # Should be hyper-parameter
+            min_delta=0.001,
+        )  
+               
+        r_model.fit(
+            X, X_m,
+            batch_size = 16,
+            validation_split = 0.1,
+            shuffle = True,
+            epochs=2000,
+            verbose = 2,
+            #callbacks= [early_stop,] #tensorboard_callback]
+        )
+
+        self.history = r_model.history
+        self.model = model_emb
+        self.weights = model_emb.get_weights()
+        self.config = model_emb.get_config()
+
+        del r_model
+        del model_emb
+
+        tf.keras.backend.clear_session()
+        collect()
+
+        return self
+
+    def get_imp_scores(self, clf_models, X):
+
+        sh.explainers._deep.deep_tf.op_handlers[
+            "Mish"
+        ] = sh.explainers._deep.deep_tf.nonlinearity_1d(0)
+        sh.explainers._deep.deep_tf.op_handlers[
+            "mish"
+        ] = sh.explainers._deep.deep_tf.nonlinearity_1d(0)
+
+        sh_exp = sh.GradientExplainer(clf_models, data=X)
+
+        scores = sh_exp.shap_values(X)
+
+        collect()
+
+        return scores
+
+    def get_prediction(self, X):
+
+        clf_models = Model.from_config(self.config)
+        clf_models.set_weights(self.weights)        
+        
+        sh_exp = sh.GradientExplainer(clf_models, data=X)
+
+        del clf_models
+
+        tf.keras.backend.clear_session()
+        collect()
+
+        return scores
+
+    def predict_emb(self, X):
+
+        clf_models = Model.from_config(self.config)
+        clf_models.set_weights(self.weights)   
+        
+        predictions = clf_models.predict(X, batch_size=32)
+
+        tf.keras.backend.clear_session()
+
+        return predictions
+
+    def predict(self, X):
+
+        return self.predict_emb(X)
