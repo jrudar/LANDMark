@@ -3,7 +3,7 @@ Implementation of a decision tree ensemble which splits each node using learned 
 
 ### Install
 Once downloaded, go to the LANDMark directory and type:
-    pip install .
+    `python setup.py sdist`
     
 ### Class Parameters
     n_estimators: int, default = 64
