@@ -10,7 +10,7 @@ setup(
     license="MIT",
     keywords="biomarker selection, metagenomics, metabarcoding, biomonitoring, ecological assessment, machine learning, supervised learning, unsupervised learning",
     packages=["LANDMark"],
-    python_requires=">=3.10",
+    python_requires=">=3.8",
     install_requires=[
         "scikit-learn >= 1.1.2",
         "joblib >= 1.2.0",
