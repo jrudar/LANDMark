@@ -88,7 +88,7 @@ of the `LANDMark` class and its methods.
 ### Methods
 
     fit(X, y)
-        Fits a `TreeOrdination` model.
+        Fits a `LANDMark` model.
 
         Parameters:
 
