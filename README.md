@@ -1,78 +1,74 @@
 ### LANDMark
+
+[![CI](https://github.com/jrudar/Triglav/actions/workflows/ci.yml/badge.svg)](https://github.com/jrudar/Triglav/actions/workflows/ci.yml)
+
 Implementation of a decision tree ensemble which splits each node using learned linear and non-linear functions.
 
 ### Install
-Once downloaded, go to the LANDMark directory and type:
-    `python setup.py sdist`
-    Switch into the `dist` directory and type `pip install LANDMark-a.b.c.tar.gz` where a, b, and c are the version numbers of the package.
-    
-### Class Parameters
-    n_estimators: int, default = 64
-        The number of trees used to construct the ensemble.
+From PyPI:
 
-    min_samples_in_leaf: int, default = 5
-        The minimum number of samples in each leaf to proceed to cutting.
-        
-    max_depth: int, default = -1
-        The maximum depth of the tree. '-1' implies that trees will fully
-        grow until a stopping criterion is met.
-        
-    max_features: float, default = 0.80
-        The maximum features used to train each model at each node. These
-        features are randomly selected at each node.
-        
-    min_gain: float, default = 0
-        The minimum gain needed to split a node.
-        
-    impurity: str, default = "gain"
-        The method by which LANDMark calculates the purity of each split.
-        Currently, only information gain is used.
-        
-    use_oracle: bool, default = True
-        Specifies if a random linear oracle should be used as the initial
-        split.
-        
-    use_lm_l2: bool, default = True
-        Specifies if linear models using L2 regularization should be trained.
-        
-    use_lm_l1: bool, default = True
-        Specifies if linear models using L1 regularization should be trained.
-        
-    use_nnet: bool, default = True
-        Specifies if neural network models should be trained.
-        
-    nnet_min_samples: int, default = 32
-        The minimum number of samples needed to train a neural network model.
-        
-    use_etc: bool, default = True
-        Specifies if Extremely Randomized Tree models should be trained. Could
-        be used as an alternative to neural network models.
-        
-    max_samples_tree: int, default = -1
-        Specifies the maximum number of samples used to construct each tree.
-        A stratified random sample is chosen to construct each tree. If '-1'
-        is selected, all samples are chosen.
-        
-    bootstrap: bool, default = False
-        Specifies if each tree is built using a bootstrap sample.
-        
-    n_jobs: int, default = 4
-        The number of processes used to create the LANDMark model.
-            
-### Fit Parameters
-        X: NumPy array of shape (m, n) where 'm' is the number of samples and 'n'
-        the number of features (features, taxa, OTUs, ASVs, etc).
+```bash
+pip install triglav
+```
 
-        y: NumPy array of shape (m,) where 'm' is the number of samples. Each entry
-        of 'y' should be a factor.
-        
-### Example Usage
-        from LANDMark import LANDMarkClassifier
-        from sklearn.datasets import make_classification
-        
-        X, y = make_classification()
-        
-        clf = LANDMarkClassifier().fit(X, y)
+From source:
+
+```bash
+git clone https://github.com/jrudar/Triglav.git
+cd Triglav
+pip install .
+# or create a virtual environment
+python -m venv venv
+source venv/bin/activate
+pip install .
+```
+
+## Interface
+
+An overview of the API can be found [here](docs/API.md).
+
+## Usage and Examples
+
+Comming Soon
+
+## Contributing
+
+To contribute to the development of `LANDMark` please read our [contributing guide](docs/CONTRIBUTING.md)
+
+## Basic Usage
+
+    from LANDMark import LANDMarkClassifier
+
+    from sklearn.datasets import load_wine
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.model_selection import train_test_split
+
+    # Create the dataset
+    X, y = load_wine(return_X_y = True)
+
+    # Split into train and test sets
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=0, stratify=y
+    )
+
+    # Standardize
+    X_trf = StandardScaler()
+    X_trf.fit(X_train)
+
+    X_train = X_trf.transform(X_train)
+    X_test = X_trf.transform(X_test)
+
+    # Setup a LANDMark model and fit
+    clf = LANDMarkClassifier()
+    clf.fit(X_train, y_train)
+
+    # Make a prediction
+    predictions = clf.predict(X_test)
+
+### Specal Notes
+
+Starting with TensorFlow 2.11, GPU support on Windows 10 and higher requires Windows WSL2.
+See: https://www.tensorflow.org/install/pip
 
 ### References
 

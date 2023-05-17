@@ -57,7 +57,7 @@ class RandomOracle(ClassifierMixin, BaseEstimator):
     def __init__(self, oracle="Linear", n_feat=0.8):
         self.oracle = "Linear"
         self.n_feat = n_feat
-
+        
     def fit(self, X, y):
         if X.shape[1] >= 4:
             self.features = np.random.choice(
