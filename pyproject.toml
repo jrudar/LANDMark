@@ -3,7 +3,7 @@ build-backend = "hatchling.build"
 requires = ["hatchling"]
 
 [project]
-name = "LANDMark"
+name = "LANDMarkClassifier"
 version = "2.0.0"
 authors = [
     {name = "Josip Rudar", email = "rudarj@uoguelph.ca"},
