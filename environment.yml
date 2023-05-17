@@ -4,10 +4,10 @@ dependencies:
     - python >=3.8
     - pip
     - pip:
-        numpy == 1.23.5
-        scikit-learn >= 1.1.2
-        joblib >= 1.2.0
-        tensorflow_addons >= 0.17.1
-        tensorflow >= 2.9.1
-        pandas >= 1.5.0
-        scipy >= 1.8.1
+        - numpy == 1.23.5
+        - scikit-learn >= 1.1.2
+        - joblib >= 1.2.0
+        - tensorflow_addons >= 0.17.1
+        - tensorflow >= 2.9.1
+        - pandas >= 1.5.0
+        - scipy >= 1.8.1
