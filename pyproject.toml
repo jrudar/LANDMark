@@ -1,0 +1,73 @@
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[project]
+name = "LANDMark"
+version = "2.0.0"
+authors = [
+    {name = "Josip Rudar", email = "rudarj@uoguelph.ca"},
+    {name = "Teresita M. Porter"},
+    {name = "Michael Wright"},
+    {name = "G. Brian Golding"},
+    {name = "Mehrdad Hajibabaei", email = "mhajibab@uoguelph.ca"}
+]
+description = "LANDMark: An ensemble approach to the supervised selection of biomarkers in high-throughput sequencing data"
+keywords = [
+    "ecology",
+    "multivariate statistics",
+    "machine learning",
+    "classification"
+]
+license = {file = "LICENSE"}
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3 :: Only",
+]
+dependencies = [
+    "numpy == 1.23.5",
+    "scikit-learn >= 1.1.2",
+    "joblib >= 1.2.0",
+    "tensorflow_addons >= 0.17.1",
+    "tensorflow >= 2.9.1",
+    "pandas >= 1.5.0",
+    "scipy >= 1.8.1",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/jrudar/LANDMark"
+"Repository" = "https://github.com/jrudar/LANDMark.git"
+"Bug Tracker" = "https://github.com/jrudar/LANDMark/issues"
+
+[project.optional-dependencies]
+dev = [
+    "black",
+    "mypy",
+    "ruff",
+    "twine",
+]
+
+test = [
+    "pytest",
+    "pytest-cov"
+]
+
+[tool.setuptools]
+py-modules = ["LANDMark"]
+
+[tool.pytest.ini_options]
+addopts = "--cov --cov-report html --cov-report term-missing --cov-fail-under 70"
+
+[tool.coverage.run]
+source = ["LANDMark"]
