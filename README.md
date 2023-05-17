@@ -1,6 +1,6 @@
 ### LANDMark
 
-[![CI](https://github.com/jrudar/Triglav/actions/workflows/ci.yml/badge.svg)](https://github.com/jrudar/Triglav/actions/workflows/ci.yml)
+[![CI](https://github.com/jrudar/LANDMark/actions/workflows/ci.yml/badge.svg)](https://github.com/jrudar/LANDMark/actions/workflows/ci.yml)
 
 Implementation of a decision tree ensemble which splits each node using learned linear and non-linear functions.
 
@@ -8,14 +8,14 @@ Implementation of a decision tree ensemble which splits each node using learned 
 From PyPI:
 
 ```bash
-pip install triglav
+pip install LANDMarkClassifier
 ```
 
 From source:
 
 ```bash
-git clone https://github.com/jrudar/Triglav.git
-cd Triglav
+git clone https://github.com/jrudar/LANDMark.git
+cd LANDMark
 pip install .
 # or create a virtual environment
 python -m venv venv
