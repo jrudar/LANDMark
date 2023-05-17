@@ -19,7 +19,7 @@ jobs:
       with:
         miniforge-variant: Mambaforge
         miniforge-version: latest
-        activate-environment: TreeOrdination
+        activate-environment: LANDMark
         channel-priority: strict
         environment-file: environment.yml
         use-mamba: true
