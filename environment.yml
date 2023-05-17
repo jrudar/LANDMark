@@ -1,0 +1,13 @@
+name: TreeOrdination
+
+dependencies:
+    - python >=3.8
+    - pip
+    - pip:
+        - LANDMark@git+https://github.com/jrudar/LANDMark.git
+        - numpy == 1.23.5
+        - scikit-learn >= 1.1.2
+        - scikit-bio >= 0.5.8
+        - umap-learn >= 0.5.3
+        - shap >= 0.40.0
+        - seaborn
