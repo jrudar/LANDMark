@@ -3,20 +3,17 @@ import numpy as np
 ##########################################################################################
 # For Bagging Classifier
 from sklearn.base import ClassifierMixin, BaseEstimator, clone
-from sklearn.utils import resample
 from scipy.special import softmax
 from joblib import Parallel, delayed, parallel_backend
 
 
-def _parallel_build(estimator, X, y, max_samples_tree):
-    if X.shape[0] <= max_samples_tree or max_samples_tree == -1:
+def _parallel_build(estimator, X, y, resampler):
+    if isinstance(resampler, type(None)):
         X_trf = X
         y_trf = y
 
     else:
-        X_trf, y_trf = resample(
-            X, y, replace=True, n_samples=max_samples_tree, stratify=y
-        )
+        X_trf, y_trf = clone(resampler).fit_resample(X, y)
 
     trained_estimator = estimator.fit(X_trf, y_trf)
 
@@ -25,10 +22,10 @@ def _parallel_build(estimator, X, y, max_samples_tree):
 
 class Ensemble(ClassifierMixin, BaseEstimator):
     def __init__(
-        self, base_estimator, max_samples_tree, n_estimators, class_names, n_jobs
+        self, base_estimator, resampler, n_estimators, class_names, n_jobs
     ):
         self.base_estimator = base_estimator
-        self.max_samples_tree = max_samples_tree
+        self.resampler = resampler
         self.n_estimators = n_estimators
         self.classes_ = class_names
         self.n_jobs = n_jobs
@@ -37,7 +34,7 @@ class Ensemble(ClassifierMixin, BaseEstimator):
 
         self.estimators_ = Parallel(n_jobs=self.n_jobs)(
             delayed(_parallel_build)(
-                clone(self.base_estimator), X, y, self.max_samples_tree
+                clone(self.base_estimator), X, y, self.resampler
             )
             for i in range(self.n_estimators)
         )
@@ -98,6 +95,7 @@ class Ensemble(ClassifierMixin, BaseEstimator):
 
 
 ##########################################################################################
+# For Neural Network Models
 import tensorflow as tf
 import keras.backend as K
 

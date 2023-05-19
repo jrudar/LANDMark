@@ -16,22 +16,77 @@ from .lm_base_clfs import (
 )
 
 
-def purity_function(N, N_lab, L, R, y, purity_fun="gain"):
-    # Calculate Information Gain
-    if purity_fun == "gain":
-        L_outcome, L_counts = np.unique(y[L], return_counts=True)
-        L_prob = L_counts / L_counts.sum()
-        H_L = entropy(L_prob) * (L_counts.sum() / N)
+def tsallis_fun(N, N_lab, L, R, y, mode, q):
 
-        R_outcome, R_counts = np.unique(y[R], return_counts=True)
-        R_prob = R_counts / R_counts.sum()
-        H_R = entropy(R_prob) * (R_counts.sum() / N)
+    if q == 1: #Special case
+        if "ratio" in mode.split("-"):
+            return entropy_fun(N, N_lab, L, R, y, "gain-ratio")
 
-        H_parent = entropy(N_lab)
+        else:
+            return entropy_fun(N, N_lab, L, R, y, "gain")
 
-        IG = H_parent - H_L - H_R
+    scaler = 1 / (1 - q)
+
+    L_outcome, L_counts = np.unique(y[L], return_counts=True)
+    L_prob = L_counts / L_counts.sum()
+    H_L = (L_counts.sum() / N) * (scaler * (np.power(L_prob, q).sum() - 1))
+
+    R_outcome, R_counts = np.unique(y[R], return_counts=True)
+    R_prob = R_counts / R_counts.sum()
+    H_R = (R_counts.sum() / N) * (scaler * (np.power(R_prob, q).sum() - 1))
+
+    H_parent = scaler * (np.power(N_lab, q).sum() - 1)
+
+    IG = H_parent - H_R - H_L
+
+    if mode == "tsallis":
 
         return IG
+
+    else:
+        norm_factor = np.asarray([(L_counts.sum() / N), (R_counts.sum() / N)])
+        norm_factor = 1 + (scaler * (np.power(norm_factor, q).sum() - 1))
+    
+        GR = IG / norm_factor
+
+        return GR
+
+
+def entropy_fun(N, N_lab, L, R, y, mode):
+    L_outcome, L_counts = np.unique(y[L], return_counts=True)
+    L_prob = L_counts / L_counts.sum()
+    H_L = entropy(L_prob) * (L_counts.sum() / N)
+
+    R_outcome, R_counts = np.unique(y[R], return_counts=True)
+    R_prob = R_counts / R_counts.sum()
+    H_R = entropy(R_prob) * (R_counts.sum() / N)
+
+    H_parent = entropy(N_lab)
+
+    IG = H_parent - H_L - H_R
+
+    if mode == "gain":
+
+        return IG
+
+    else:
+        norm_factor = np.asarray([(L_counts.sum() / N), (R_counts.sum() / N)])
+        norm_factor = 1 + entropy(norm_factor)
+    
+        GR = IG / norm_factor
+
+        return GR
+
+
+def purity_function(N, N_lab, L, R, y, purity_fun, q):
+    
+    if purity_fun == "gain" or purity_fun == "gain-ratio":
+
+        return entropy_fun(N, N_lab, L, R, y, purity_fun)
+
+    elif purity_fun == "tsallis-gain-ratio" or purity_fun == "tsallis":
+
+        return tsallis_fun(N, N_lab, L, R, y, purity_fun, q)
 
 
 class PredictData:
@@ -72,6 +127,7 @@ class Node:
                   max_features,
                   min_gain,
                   impurity,
+                  q,
                   use_lm_l2,
                   use_lm_l1,
                   use_nnet,
@@ -123,7 +179,7 @@ class Node:
                 L = np.where(D > 0, True, False)
                 R = np.where(D <= 0, True, False)
 
-                IG = purity_function(counts_sum, counts_prob, L, R, y, impurity)
+                IG = purity_function(counts_sum, counts_prob, L, R, y, impurity, q)
 
                 self.gain = IG
 
@@ -135,6 +191,7 @@ class Node:
                                                  max_features = max_features,
                                                  min_gain = min_gain,
                                                  impurity = impurity,
+                                                 q = q,
                                                  use_lm_l2 = use_lm_l2,
                                                  use_lm_l1 = use_lm_l1,
                                                  use_nnet = use_nnet,
@@ -153,6 +210,7 @@ class Node:
                                                   max_features = max_features,
                                                   min_gain = min_gain,
                                                   impurity = impurity,
+                                                  q = q,
                                                   use_lm_l2 = use_lm_l2,
                                                   use_lm_l1 = use_lm_l1,
                                                   use_nnet = use_nnet,
@@ -192,7 +250,7 @@ class Node:
                         # Calculate Information Gain
                         if X_L_n > 0 and X_R_n > 0:
                             IG = purity_function(
-                                counts_sum, counts_prob, L, R, y, impurity
+                                counts_sum, counts_prob, L, R, y, impurity, q
                             )
 
                             gains.append(IG)
@@ -219,7 +277,7 @@ class Node:
                         # Calculate Information Gain
                         if X_L_n > 0 and X_R_n > 0:
                             IG = purity_function(
-                                counts_sum, counts_prob, L, R, y, impurity
+                                counts_sum, counts_prob, L, R, y, impurity, q
                             )
 
                             gains.append(IG)
@@ -244,7 +302,7 @@ class Node:
                             # Calculate Information Gain
                             if X_L_n > 0 and X_R_n > 0:
                                 IG = purity_function(
-                                    counts_sum, counts_prob, L, R, y, impurity
+                                    counts_sum, counts_prob, L, R, y, impurity, q
                                 )
 
                                 gains.append(IG)
@@ -274,7 +332,7 @@ class Node:
                         # Calculate Information Gain
                         if X_L_n > 0 and X_R_n > 0:
                             IG = purity_function(
-                                counts_sum, counts_prob, L, R, y, impurity
+                                counts_sum, counts_prob, L, R, y, impurity, q
                             )
 
                             gains.append(IG)
@@ -312,6 +370,7 @@ class Node:
                                                  max_features = max_features,
                                                  min_gain = min_gain,
                                                  impurity = impurity,
+                                                 q = q,
                                                  use_lm_l2 = use_lm_l2,
                                                  use_lm_l1 = use_lm_l1,
                                                  use_nnet = use_nnet,
@@ -330,6 +389,7 @@ class Node:
                                                   max_features = max_features,
                                                   min_gain = min_gain,
                                                   impurity = impurity,
+                                                  q = q,
                                                   use_lm_l2 = use_lm_l2,
                                                   use_lm_l1 = use_lm_l1,
                                                   use_nnet = use_nnet,
@@ -361,6 +421,7 @@ class MTree(ClassifierMixin, BaseEstimator):
         max_features,
         min_gain,
         impurity,
+        q,
         use_oracle,
         bootstrap,
         use_lm_l2,
@@ -376,6 +437,7 @@ class MTree(ClassifierMixin, BaseEstimator):
         self.max_features = max_features
         self.min_gain = min_gain
         self.impurity = impurity
+        self.q = q
         self.use_oracle = use_oracle
         self.bootstrap = bootstrap
         self.use_lm_l2 = use_lm_l2
@@ -408,6 +470,7 @@ class MTree(ClassifierMixin, BaseEstimator):
                        max_features = self.max_features,
                        min_gain = self.min_gain,
                        impurity = self.impurity,
+                       q = self.q,
                        use_lm_l2 = self.use_lm_l2,
                        use_lm_l1 = self.use_lm_l1,
                        use_nnet = self.use_nnet,

@@ -18,6 +18,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
         max_features: float = 0.80,
         min_gain: float = 0.0,
         impurity: str = "gain",
+        q: float = 1.5,
         use_oracle: bool = True,
         use_lm_l2: bool = True,
         use_lm_l1: bool = True,
@@ -26,7 +27,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
         use_etc: bool = True,
         etc_max_depth: int = 5,
         etc_max_trees: int = 128,
-        max_samples_tree: int = -1,
+        resampler = None,
         bootstrap: bool = False,
         n_jobs: int = 4,
     ):
@@ -37,6 +38,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
         self.max_features = max_features
         self.min_gain = min_gain
         self.impurity = impurity
+        self.q = q
         self.use_oracle = use_oracle
         self.use_lm_l2 = use_lm_l2
         self.use_lm_l1 = use_lm_l1
@@ -45,7 +47,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
         self.use_etc = use_etc
         self.etc_max_depth = etc_max_depth
         self.etc_max_trees = etc_max_trees
-        self.max_samples_tree = max_samples_tree
+        self.resampler = resampler
         self.bootstrap = bootstrap
 
         self.n_jobs = n_jobs
@@ -72,6 +74,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
                 max_features=self.max_features,
                 min_gain=self.min_gain,
                 impurity=self.impurity,
+                q = self.q,
                 use_oracle=self.use_oracle,
                 bootstrap=self.bootstrap,
                 use_lm_l2=self.use_lm_l2,
@@ -82,7 +85,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
                 etc_max_depth=self.etc_max_depth,
                 etc_max_trees=self.etc_max_trees,
             ),
-            max_samples_tree=self.max_samples_tree,
+            resampler=self.resampler,
             n_estimators=self.n_estimators,
             class_names=self.classes_,
             n_jobs=self.n_jobs,
