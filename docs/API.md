@@ -33,7 +33,15 @@ of the `LANDMark` class and its methods.
         
     impurity: str, default = "gain"
         The method by which LANDMark calculates the purity of each split.
-        Currently, only information gain is used.
+        Currently, only information gain is used. Currently the options are
+        'gain', 'tsallis', 'gain-ratio', 'tsallis-gain-ratio'.
+        
+    q: float, default = 1.5
+        Parameter of the Tsallis entropy function. Smaller values may be more
+        important when there are many classes. A value of 1.0 corresponds to
+        information gain using Shannon entropy while a value of 2.0 corresponds
+        to the gini index. Only used when impurity is set to 'tsallis' or
+        'tsallis-gain-ratio'.
         
     use_oracle: bool, default = True
         Specifies if a random linear oracle should be used as the initial
@@ -69,8 +77,10 @@ of the `LANDMark` class and its methods.
         A stratified random sample is chosen to construct each tree. If '-1'
         is selected, all samples are chosen.
         
-    bootstrap: bool, default = False
-        Specifies if each tree is built using a bootstrap sample.
+    resampler: The resampling object. Cloning of the object must be possible and,
+        at a minimum, the object must have a 'fit_resample(X, y)' method. The
+        resampling object can also have a 'transform(X)' method if a user-defined
+        transformation occurs during fitting.
         
     n_jobs: int, default = 4
         The number of processes used to create the LANDMark model.
