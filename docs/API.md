@@ -5,7 +5,8 @@ of the `LANDMark` class and its methods.
 
 ## Class
 
-    class LANDMark.LANDMark(n_estimators, min_samples_in_leaf, max_depth, max_features, min_gain, impurity, use_oracle, use_lm_l2, use_lm_l1, use_nnet, nnet_min_samples, use_etc, etc_max_depth = 5, etc_max_trees =         128, max_samples_tree, bootstrap, n_jobs = 4)
+    class LANDMark.LANDMark(n_estimators, min_samples_in_leaf, max_depth, max_features, min_gain, impurity, use_oracle, use_lm_l2, use_lm_l1, 
+        use_nnet, nnet_min_samples, use_etc, etc_max_depth = 5, etc_max_trees = 128, max_samples_tree, bootstrap, n_jobs = 4)
 
 ### Parameters
 
