@@ -567,9 +567,15 @@ class MTree(ClassifierMixin, BaseEstimator):
         return final_predictions
 
     def predict(self, X):
+        if hasattr(self.resampler, "transform"):
+            X_trf = self.resampler.transform(X)
+        
+        else:
+            X_trf = X
+        
         mapping = {class_name: i for i, class_name in enumerate(self.classes_)}
 
-        tree_predictions = self._predict(X)
+        tree_predictions = self._predict(X_trf)
 
         tree_predictions = [(int(entry[0]), entry[1]) for entry in tree_predictions]
         tree_predictions.sort()
@@ -637,7 +643,13 @@ class MTree(ClassifierMixin, BaseEstimator):
         return final_predictions
 
     def proximity(self, X):
-        tree_predictions = self._proximity(X)
+        if hasattr(self.resampler, "transform"):
+            X_trf = self.resampler.transform(X)
+        
+        else:
+            X_trf = X
+        
+        tree_predictions = self._proximity(X_trf)
 
         tree_predictions.sort()
 
