@@ -28,7 +28,6 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
         etc_max_depth: int = 5,
         etc_max_trees: int = 128,
         resampler = None,
-        bootstrap: bool = False,
         n_jobs: int = 4,
     ):
         # Tree construction parameters
@@ -48,7 +47,6 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
         self.etc_max_depth = etc_max_depth
         self.etc_max_trees = etc_max_trees
         self.resampler = resampler
-        self.bootstrap = bootstrap
 
         self.n_jobs = n_jobs
 
@@ -76,7 +74,6 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
                 impurity=self.impurity,
                 q = self.q,
                 use_oracle=self.use_oracle,
-                bootstrap=self.bootstrap,
                 use_lm_l2=self.use_lm_l2,
                 use_lm_l1=self.use_lm_l1,
                 use_nnet=self.use_nnet,
@@ -84,8 +81,8 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
                 use_etc=self.use_etc,
                 etc_max_depth=self.etc_max_depth,
                 etc_max_trees=self.etc_max_trees,
+                resampler = self.resampler
             ),
-            resampler=self.resampler,
             n_estimators=self.n_estimators,
             class_names=self.classes_,
             n_jobs=self.n_jobs,

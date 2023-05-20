@@ -4,7 +4,7 @@ from scipy.stats import entropy
 
 from random import choice
 
-from sklearn.base import ClassifierMixin, BaseEstimator
+from sklearn.base import ClassifierMixin, BaseEstimator, clone
 from sklearn.metrics import balanced_accuracy_score
 from sklearn.utils import resample
 
@@ -423,7 +423,6 @@ class MTree(ClassifierMixin, BaseEstimator):
         impurity,
         q,
         use_oracle,
-        bootstrap,
         use_lm_l2,
         use_lm_l1,
         use_nnet,
@@ -431,6 +430,7 @@ class MTree(ClassifierMixin, BaseEstimator):
         use_etc,
         etc_max_depth,
         etc_max_trees,
+        resampler
     ):
         self.min_samples_in_leaf = min_samples_in_leaf
         self.max_depth = max_depth
@@ -439,7 +439,6 @@ class MTree(ClassifierMixin, BaseEstimator):
         self.impurity = impurity
         self.q = q
         self.use_oracle = use_oracle
-        self.bootstrap = bootstrap
         self.use_lm_l2 = use_lm_l2
         self.use_lm_l1 = use_lm_l1
         self.use_nnet = use_nnet
@@ -447,22 +446,25 @@ class MTree(ClassifierMixin, BaseEstimator):
         self.use_etc = use_etc
         self.etc_max_depth = etc_max_depth
         self.etc_max_trees = etc_max_trees
+        self.resampler = resampler
 
     def fit(self, X, y):
         self.classes_ = np.unique(y)
 
-        # Create the root node and begin splitting
-        tree = Node()
-
-        # Increase diversity by reampling with replacement
-        if self.bootstrap:
-            X_re, y_re = resample(X, y, replace=True, n_samples=X.shape[0], stratify=y)
-
-        else:
+        # Increase diversity by resampling
+        if isinstance(self.resampler, type(None)):
             X_re = X
             y_re = y
 
-        # Get the tree
+        else:
+            self.resampler = clone(self.resampler)
+
+            X_re, y_re = self.resampler.fit_resample(X, y)
+
+        # Create the root node
+        tree = Node()
+
+        # Begin Splitting
         tree.get_split(X=X_re, 
                        y=y_re,
                        min_samples_in_leaf = self.min_samples_in_leaf,
@@ -565,9 +567,15 @@ class MTree(ClassifierMixin, BaseEstimator):
         return final_predictions
 
     def predict(self, X):
+        if hasattr(self.resampler, "transform"):
+            X_trf = self.resampler.transform(X)
+        
+        else:
+            X_trf = X
+        
         mapping = {class_name: i for i, class_name in enumerate(self.classes_)}
 
-        tree_predictions = self._predict(X)
+        tree_predictions = self._predict(X_trf)
 
         tree_predictions = [(int(entry[0]), entry[1]) for entry in tree_predictions]
         tree_predictions.sort()
@@ -635,7 +643,13 @@ class MTree(ClassifierMixin, BaseEstimator):
         return final_predictions
 
     def proximity(self, X):
-        tree_predictions = self._proximity(X)
+        if hasattr(self.resampler, "transform"):
+            X_trf = self.resampler.transform(X)
+        
+        else:
+            X_trf = X
+        
+        tree_predictions = self._proximity(X_trf)
 
         tree_predictions.sort()
 
