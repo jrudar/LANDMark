@@ -6,7 +6,6 @@ from random import choice
 
 from sklearn.base import ClassifierMixin, BaseEstimator, clone
 from sklearn.metrics import balanced_accuracy_score
-from sklearn.utils import resample
 
 from .lm_base_clfs import (
     LMClassifier,
@@ -17,8 +16,7 @@ from .lm_base_clfs import (
 
 
 def tsallis_fun(N, N_lab, L, R, y, mode, q):
-
-    if q == 1: #Special case
+    if q == 1:  # Special case
         if "ratio" in mode.split("-"):
             return entropy_fun(N, N_lab, L, R, y, "gain-ratio")
 
@@ -40,13 +38,12 @@ def tsallis_fun(N, N_lab, L, R, y, mode, q):
     IG = H_parent - H_R - H_L
 
     if mode == "tsallis":
-
         return IG
 
     else:
         norm_factor = np.asarray([(L_counts.sum() / N), (R_counts.sum() / N)])
         norm_factor = 1 + (scaler * (np.power(norm_factor, q).sum() - 1))
-    
+
         GR = IG / norm_factor
 
         return GR
@@ -66,26 +63,22 @@ def entropy_fun(N, N_lab, L, R, y, mode):
     IG = H_parent - H_L - H_R
 
     if mode == "gain":
-
         return IG
 
     else:
         norm_factor = np.asarray([(L_counts.sum() / N), (R_counts.sum() / N)])
         norm_factor = 1 + entropy(norm_factor)
-    
+
         GR = IG / norm_factor
 
         return GR
 
 
 def purity_function(N, N_lab, L, R, y, purity_fun, q):
-    
     if purity_fun == "gain" or purity_fun == "gain-ratio":
-
         return entropy_fun(N, N_lab, L, R, y, purity_fun)
 
     elif purity_fun == "tsallis-gain-ratio" or purity_fun == "tsallis":
-
         return tsallis_fun(N, N_lab, L, R, y, purity_fun, q)
 
 
@@ -100,9 +93,7 @@ class PredictData:
 
 
 class Node:
-
     def __init__(self):
-
         # Node parameters
         self.c_choice = None
 
@@ -119,26 +110,27 @@ class Node:
         self.node_id = None
 
     # Select the best split point for a dataset
-    def get_split(self, 
-                  X,
-                  y,
-                  min_samples_in_leaf,
-                  max_depth,
-                  max_features,
-                  min_gain,
-                  impurity,
-                  q,
-                  use_lm_l2,
-                  use_lm_l1,
-                  use_nnet,
-                  nnet_min_samples,
-                  use_etc,
-                  etc_max_depth,
-                  etc_max_trees,
-                  N,
-                  current_depth,
-                  use_oracle):
-
+    def get_split(
+        self,
+        X,
+        y,
+        min_samples_in_leaf,
+        max_depth,
+        max_features,
+        min_gain,
+        impurity,
+        q,
+        use_lm_l2,
+        use_lm_l1,
+        use_nnet,
+        nnet_min_samples,
+        use_etc,
+        etc_max_depth,
+        etc_max_trees,
+        N,
+        current_depth,
+        use_oracle,
+    ):
         # Get the ID of the node
         self.node_id = id(self)
 
@@ -152,21 +144,40 @@ class Node:
         counts_sum = counts_tr.sum()
         counts_prob = counts_tr / counts_sum
         counts_min = np.min(counts_tr)
-        counts_min_prob = counts_min / counts_sum
 
-        # If the node is pure, the maximim depth is reached, or the number of samples is too small, create a leaf
-        if (
-            entropy(counts_prob) == 0
-            or counts_sum < min_samples_in_leaf
-            or (current_depth >= max_depth and max_depth > -1)
-            or counts_min <= 1
-        ):
+        # Check if stopping criteria are met
+        if entropy(counts_prob) == 0:
             leaf_predictions = PredictData(outcomes[np.argmax(counts_prob)])
 
             self.label = leaf_predictions.predict
             self.terminal = True
 
             return self
+
+        if counts_sum < min_samples_in_leaf:
+            leaf_predictions = PredictData(outcomes[np.argmax(counts_prob)])
+
+            self.label = leaf_predictions.predict
+            self.terminal = True
+
+            return self
+
+        if counts_min <= 1:
+            leaf_predictions = PredictData(outcomes[np.argmax(counts_prob)])
+
+            self.label = leaf_predictions.predict
+            self.terminal = True
+
+            return self
+
+        if isinstance(max_depth, int):
+            if current_depth >= max_depth:
+                leaf_predictions = PredictData(outcomes[np.argmax(counts_prob)])
+
+                self.label = leaf_predictions.predict
+                self.terminal = True
+
+                return self
 
         # Otherwise split
         else:
@@ -184,43 +195,47 @@ class Node:
                 self.gain = IG
 
                 # Recursivly split
-                self.left = Node().get_split(X[L], 
-                                                 y[L],
-                                                 min_samples_in_leaf = min_samples_in_leaf,
-                                                 max_depth = max_depth,
-                                                 max_features = max_features,
-                                                 min_gain = min_gain,
-                                                 impurity = impurity,
-                                                 q = q,
-                                                 use_lm_l2 = use_lm_l2,
-                                                 use_lm_l1 = use_lm_l1,
-                                                 use_nnet = use_nnet,
-                                                 nnet_min_samples = nnet_min_samples,
-                                                 use_etc = use_etc,
-                                                 etc_max_depth = etc_max_depth,
-                                                 etc_max_trees = etc_max_trees,
-                                                 N=X.shape[0],
-                                                 current_depth=current_depth + 1,
-                                                 use_oracle=False)
+                self.left = Node().get_split(
+                    X[L],
+                    y[L],
+                    min_samples_in_leaf=min_samples_in_leaf,
+                    max_depth=max_depth,
+                    max_features=max_features,
+                    min_gain=min_gain,
+                    impurity=impurity,
+                    q=q,
+                    use_lm_l2=use_lm_l2,
+                    use_lm_l1=use_lm_l1,
+                    use_nnet=use_nnet,
+                    nnet_min_samples=nnet_min_samples,
+                    use_etc=use_etc,
+                    etc_max_depth=etc_max_depth,
+                    etc_max_trees=etc_max_trees,
+                    N=X.shape[0],
+                    current_depth=current_depth + 1,
+                    use_oracle=False,
+                )
 
-                self.right = Node().get_split(X[R], 
-                                                  y[R],
-                                                  min_samples_in_leaf = min_samples_in_leaf,
-                                                  max_depth = max_depth,
-                                                  max_features = max_features,
-                                                  min_gain = min_gain,
-                                                  impurity = impurity,
-                                                  q = q,
-                                                  use_lm_l2 = use_lm_l2,
-                                                  use_lm_l1 = use_lm_l1,
-                                                  use_nnet = use_nnet,
-                                                  nnet_min_samples = nnet_min_samples,
-                                                  use_etc = use_etc,
-                                                  etc_max_depth = etc_max_depth,
-                                                  etc_max_trees = etc_max_trees,
-                                                  N=X.shape[0],
-                                                  current_depth=current_depth + 1,
-                                                  use_oracle=False)
+                self.right = Node().get_split(
+                    X[R],
+                    y[R],
+                    min_samples_in_leaf=min_samples_in_leaf,
+                    max_depth=max_depth,
+                    max_features=max_features,
+                    min_gain=min_gain,
+                    impurity=impurity,
+                    q=q,
+                    use_lm_l2=use_lm_l2,
+                    use_lm_l1=use_lm_l1,
+                    use_nnet=use_nnet,
+                    nnet_min_samples=nnet_min_samples,
+                    use_etc=use_etc,
+                    etc_max_depth=etc_max_depth,
+                    etc_max_trees=etc_max_trees,
+                    N=X.shape[0],
+                    current_depth=current_depth + 1,
+                    use_oracle=False,
+                )
 
                 return self
 
@@ -229,12 +244,12 @@ class Node:
                 self.c_choice = choice([i for i in range(outcomes.shape[0])])
 
                 # Train Linear Models - L2
-                if use_lm_l2 == True:
+                if use_lm_l2:
                     for clf in [
-                        LMClassifier(model_type = "lr_l2", n_feat=max_features),
-                        LMClassifier(model_type = "sgd_l2", n_feat=max_features),
-                        LMClassifier(model_type = "ridge", n_feat=max_features),
-                        LMClassifier(model_type = "lsvc", n_feat=max_features),
+                        LMClassifier(model_type="lr_l2", n_feat=max_features),
+                        LMClassifier(model_type="sgd_l2", n_feat=max_features),
+                        LMClassifier(model_type="ridge", n_feat=max_features),
+                        LMClassifier(model_type="lsvc", n_feat=max_features),
                     ]:
                         model, D = clf.fit(X, y)
 
@@ -258,10 +273,10 @@ class Node:
                             model_type.append(model.model_type)
 
                 # Train Linear Models - L1 / ElasticNet
-                if use_lm_l1 == True:
+                if use_lm_l1:
                     for clf in [
-                        LMClassifier(model_type = "lr_l1", n_feat=max_features),
-                        LMClassifier(model_type = "sgd_l1", n_feat=max_features),
+                        LMClassifier(model_type="lr_l1", n_feat=max_features),
+                        LMClassifier(model_type="sgd_l1", n_feat=max_features),
                     ]:
                         model, D = clf.fit(X, y)
 
@@ -285,7 +300,7 @@ class Node:
                             model_type.append(model.model_type)
 
                 # Train a Neural Network
-                if use_nnet == True:
+                if use_nnet:
                     if X.shape[0] >= nnet_min_samples:
                         for clf in [ANNClassifier(n_feat=max_features)]:
                             model, D = clf.fit(X, y)
@@ -310,7 +325,7 @@ class Node:
                                 model_type.append(model.model_type)
 
                 # Train Decision Tree Models
-                if use_etc == True:
+                if use_etc:
                     for clf in [
                         ETClassifier(
                             n_feat=max_features,
@@ -363,43 +378,47 @@ class Node:
                     self.splitter = best_hyperplane[0]
 
                     # Recursivly split
-                    self.left = Node().get_split(X[L], 
-                                                 y[L],
-                                                 min_samples_in_leaf = min_samples_in_leaf,
-                                                 max_depth = max_depth,
-                                                 max_features = max_features,
-                                                 min_gain = min_gain,
-                                                 impurity = impurity,
-                                                 q = q,
-                                                 use_lm_l2 = use_lm_l2,
-                                                 use_lm_l1 = use_lm_l1,
-                                                 use_nnet = use_nnet,
-                                                 nnet_min_samples = nnet_min_samples,
-                                                 use_etc = use_etc,
-                                                 etc_max_depth = etc_max_depth,
-                                                 etc_max_trees = etc_max_trees,
-                                                 N=X.shape[0],
-                                                 current_depth=current_depth + 1,
-                                                 use_oracle=use_oracle)
+                    self.left = Node().get_split(
+                        X[L],
+                        y[L],
+                        min_samples_in_leaf=min_samples_in_leaf,
+                        max_depth=max_depth,
+                        max_features=max_features,
+                        min_gain=min_gain,
+                        impurity=impurity,
+                        q=q,
+                        use_lm_l2=use_lm_l2,
+                        use_lm_l1=use_lm_l1,
+                        use_nnet=use_nnet,
+                        nnet_min_samples=nnet_min_samples,
+                        use_etc=use_etc,
+                        etc_max_depth=etc_max_depth,
+                        etc_max_trees=etc_max_trees,
+                        N=X.shape[0],
+                        current_depth=current_depth + 1,
+                        use_oracle=use_oracle,
+                    )
 
-                    self.right = Node().get_split(X[R], 
-                                                  y[R],
-                                                  min_samples_in_leaf = min_samples_in_leaf,
-                                                  max_depth = max_depth,
-                                                  max_features = max_features,
-                                                  min_gain = min_gain,
-                                                  impurity = impurity,
-                                                  q = q,
-                                                  use_lm_l2 = use_lm_l2,
-                                                  use_lm_l1 = use_lm_l1,
-                                                  use_nnet = use_nnet,
-                                                  nnet_min_samples = nnet_min_samples,
-                                                  use_etc = use_etc,
-                                                  etc_max_depth = etc_max_depth,
-                                                  etc_max_trees = etc_max_trees,
-                                                  N=X.shape[0],
-                                                  current_depth=current_depth + 1,
-                                                  use_oracle=use_oracle)
+                    self.right = Node().get_split(
+                        X[R],
+                        y[R],
+                        min_samples_in_leaf=min_samples_in_leaf,
+                        max_depth=max_depth,
+                        max_features=max_features,
+                        min_gain=min_gain,
+                        impurity=impurity,
+                        q=q,
+                        use_lm_l2=use_lm_l2,
+                        use_lm_l1=use_lm_l1,
+                        use_nnet=use_nnet,
+                        nnet_min_samples=nnet_min_samples,
+                        use_etc=use_etc,
+                        etc_max_depth=etc_max_depth,
+                        etc_max_trees=etc_max_trees,
+                        N=X.shape[0],
+                        current_depth=current_depth + 1,
+                        use_oracle=use_oracle,
+                    )
 
                     return self
 
@@ -430,7 +449,7 @@ class MTree(ClassifierMixin, BaseEstimator):
         use_etc,
         etc_max_depth,
         etc_max_trees,
-        resampler
+        resampler,
     ):
         self.min_samples_in_leaf = min_samples_in_leaf
         self.max_depth = max_depth
@@ -465,24 +484,26 @@ class MTree(ClassifierMixin, BaseEstimator):
         tree = Node()
 
         # Begin Splitting
-        tree.get_split(X=X_re, 
-                       y=y_re,
-                       min_samples_in_leaf = self.min_samples_in_leaf,
-                       max_depth = self.max_depth,
-                       max_features = self.max_features,
-                       min_gain = self.min_gain,
-                       impurity = self.impurity,
-                       q = self.q,
-                       use_lm_l2 = self.use_lm_l2,
-                       use_lm_l1 = self.use_lm_l1,
-                       use_nnet = self.use_nnet,
-                       nnet_min_samples = self.nnet_min_samples,
-                       use_etc = self.use_etc,
-                       etc_max_depth = self.etc_max_depth,
-                       etc_max_trees = self.etc_max_trees,
-                       N=X.shape[0],
-                       current_depth=1,
-                       use_oracle=self.use_oracle)
+        tree.get_split(
+            X=X_re,
+            y=y_re,
+            min_samples_in_leaf=self.min_samples_in_leaf,
+            max_depth=self.max_depth,
+            max_features=self.max_features,
+            min_gain=self.min_gain,
+            impurity=self.impurity,
+            q=self.q,
+            use_lm_l2=self.use_lm_l2,
+            use_lm_l1=self.use_lm_l1,
+            use_nnet=self.use_nnet,
+            nnet_min_samples=self.nnet_min_samples,
+            use_etc=self.use_etc,
+            etc_max_depth=self.etc_max_depth,
+            etc_max_trees=self.etc_max_trees,
+            N=X.shape[0],
+            current_depth=1,
+            use_oracle=self.use_oracle,
+        )
 
         self.LMTree = tree
 
@@ -494,7 +515,7 @@ class MTree(ClassifierMixin, BaseEstimator):
     def _get_node_ids(self, node):
         ids = []
 
-        if node.terminal == False:
+        if node.terminal is False:
             ids.extend(self._get_node_ids(node.left))
             ids.extend(self._get_node_ids(node.right))
 
@@ -507,7 +528,7 @@ class MTree(ClassifierMixin, BaseEstimator):
         final_predictions = []
 
         true_index = None
-        if root == True:
+        if root:
             true_index = np.asarray([i for i in range(X.shape[0])])
 
         else:
@@ -520,7 +541,7 @@ class MTree(ClassifierMixin, BaseEstimator):
         else:
             node = current_node
 
-        if node.terminal == False:
+        if node.terminal is False:
             if type(node.splitter) == ANNClassifier:
                 D = node.splitter.predict_proba(X)
 
@@ -553,7 +574,7 @@ class MTree(ClassifierMixin, BaseEstimator):
                 predictions_right = self._predict(X_R, node.right, False, right)
                 final_predictions.extend(predictions_right)
 
-        elif node.terminal == True:
+        elif node.terminal:
             predictions = node.label(X)
             predictions = np.asarray(
                 [
@@ -569,10 +590,10 @@ class MTree(ClassifierMixin, BaseEstimator):
     def predict(self, X):
         if hasattr(self.resampler, "transform"):
             X_trf = self.resampler.transform(X)
-        
+
         else:
             X_trf = X
-        
+
         mapping = {class_name: i for i, class_name in enumerate(self.classes_)}
 
         tree_predictions = self._predict(X_trf)
@@ -591,7 +612,7 @@ class MTree(ClassifierMixin, BaseEstimator):
         final_predictions = []
 
         true_index = None
-        if root == True:
+        if root:
             true_index = np.asarray([i for i in range(X.shape[0])])
 
         else:
@@ -604,7 +625,7 @@ class MTree(ClassifierMixin, BaseEstimator):
         else:
             node = current_node
 
-        if node.terminal == False:
+        if node.terminal is False:
             if type(node.splitter) == ANNClassifier:
                 D = node.splitter.predict_proba(X)
 
@@ -637,7 +658,7 @@ class MTree(ClassifierMixin, BaseEstimator):
                 predictions_right = self._proximity(X_R, node.right, False, right)
                 final_predictions.extend(predictions_right)
 
-        elif node.terminal == True:
+        elif node.terminal:
             return [(entry, node.node_id) for entry in true_index]
 
         return final_predictions
@@ -645,17 +666,17 @@ class MTree(ClassifierMixin, BaseEstimator):
     def proximity(self, X):
         if hasattr(self.resampler, "transform"):
             X_trf = self.resampler.transform(X)
-        
+
         else:
             X_trf = X
-        
+
         tree_predictions = self._proximity(X_trf)
 
         tree_predictions.sort()
 
         col_dict = {col: i for i, col in enumerate(self.all_ids)}
 
-        emb_matrix = np.zeros(shape=(X.shape[0], len(self.all_ids)), dtype=np.int)
+        emb_matrix = np.zeros(shape=(X.shape[0], len(self.all_ids)), dtype=np.ushort)
 
         for entry in tree_predictions:
             row = entry[0]

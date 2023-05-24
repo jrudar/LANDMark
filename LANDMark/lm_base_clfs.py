@@ -57,7 +57,7 @@ class RandomOracle(ClassifierMixin, BaseEstimator):
     def __init__(self, oracle="Linear", n_feat=0.8):
         self.oracle = "Linear"
         self.n_feat = n_feat
-        
+
     def fit(self, X, y):
         if X.shape[1] >= 4:
             self.features = np.random.choice(
@@ -127,8 +127,6 @@ class ETClassifier(ClassifierMixin, BaseEstimator):
 
         self.classes_, y_counts = np.unique(y_re, return_counts=True)
 
-        y_min = min(y_counts)
-
         clf_1 = ExtraTreesClassifier(
             n_estimators=self.max_trees, max_depth=self.max_depth
         )
@@ -145,13 +143,13 @@ class ETClassifier(ClassifierMixin, BaseEstimator):
     def decision_function(self, X):
         return self.clf_model.predict_proba(X[:, self.features])
 
+
 class LMClassifier(ClassifierMixin, BaseEstimator):
-    def __init__(self, model_type, n_feat = 0.8):
+    def __init__(self, model_type, n_feat=0.8):
         self.model_type = model_type
         self.n_feat = n_feat
 
     def fit(self, X, y):
-
         if X.shape[1] >= 4:
             self.features = np.random.choice(
                 [i for i in range(X.shape[1])],
@@ -179,7 +177,9 @@ class LMClassifier(ClassifierMixin, BaseEstimator):
                 if X.shape[0] >= 500:
                     solver = "saga"
 
-                self.clf = LogisticRegressionCV(max_iter=2000, cv=5, solver=solver, penalty="l1").fit(X_re, y_re)
+                self.clf = LogisticRegressionCV(
+                    max_iter=2000, cv=5, solver=solver, penalty="l1"
+                ).fit(X_re, y_re)
 
             elif self.model_type == "sgd_l2":
                 self.cv = GridSearchCV(
@@ -206,8 +206,9 @@ class LMClassifier(ClassifierMixin, BaseEstimator):
                 self.clf = self.cv.best_estimator_
 
             elif self.model_type == "ridge":
-                self.clf = RidgeClassifierCV(alphas=(0.001, 0.01, 0.1, 1.0, 10, 100, 1000),
-                                             cv = 5).fit(X_re, y_re)
+                self.clf = RidgeClassifierCV(
+                    alphas=(0.001, 0.01, 0.1, 1.0, 10, 100, 1000), cv=5
+                ).fit(X_re, y_re)
 
             elif self.model_type == "lsvc":
                 self.cv = GridSearchCV(
@@ -227,7 +228,9 @@ class LMClassifier(ClassifierMixin, BaseEstimator):
                 if X.shape[0] >= 500:
                     solver = "saga"
 
-                self.clf = LogisticRegression(max_iter=2000, solver=solver, penalty="l1").fit(X_re, y_re)
+                self.clf = LogisticRegression(
+                    max_iter=2000, solver=solver, penalty="l1"
+                ).fit(X_re, y_re)
 
             elif self.model_type == "sgd_l2":
                 self.clf = choice(
@@ -257,7 +260,9 @@ class LMClassifier(ClassifierMixin, BaseEstimator):
                 self.clf.fit(X_re, y_re)
 
             elif self.model_type == "ridge":
-                self.clf = RidgeClassifierCV(alphas=(0.001, 0.01, 0.1, 1.0, 10, 100, 1000)).fit(X_re, y_re)
+                self.clf = RidgeClassifierCV(
+                    alphas=(0.001, 0.01, 0.1, 1.0, 10, 100, 1000)
+                ).fit(X_re, y_re)
 
             elif self.model_type == "lsvc":
                 self.clf = LinearSVC(max_iter=2000).fit(X_re, y_re)
