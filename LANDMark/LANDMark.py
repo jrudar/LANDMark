@@ -154,10 +154,10 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
 
     def _check_params(self, X: np.ndarray, y: np.ndarray):
         
-        SUPPORTED_IMPURITY = set("gain", 
-                                 "gain-ratio", 
-                                 "tsallis", 
-                                 "tsallis-gain-ratio")
+        SUPPORTED_IMPURITY = {"gain", 
+                              "gain-ratio", 
+                              "tsallis", 
+                              "tsallis-gain-ratio"}
 
         # Check that X and y meet the minimum requirements
         X_conv, y_conv = check_X_y(accept_sparse = False)
