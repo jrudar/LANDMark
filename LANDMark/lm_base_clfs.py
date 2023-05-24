@@ -206,7 +206,8 @@ class LMClassifier(ClassifierMixin, BaseEstimator):
                 self.clf = self.cv.best_estimator_
 
             elif self.model_type == "ridge":
-                self.clf = RidgeClassifierCV(alphas=(0.001, 0.01, 0.1, 1.0, 10, 100, 1000)).fit(X_re, y_re)
+                self.clf = RidgeClassifierCV(alphas=(0.001, 0.01, 0.1, 1.0, 10, 100, 1000),
+                                             cv = 5).fit(X_re, y_re)
 
             elif self.model_type == "lsvc":
                 self.cv = GridSearchCV(
