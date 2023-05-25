@@ -169,12 +169,12 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
             if self.n_estimators <= 0:
                 raise ValueError("'n_estimators' must be greater than zero.")
 
-        if not isinstance(self.min_samples_leaf, int):
-           raise TypeError("'min_samples_leaf' must be an integer.")
+        if not isinstance(self.min_samples_in_leaf, int):
+           raise TypeError("'min_samples_in_leaf' must be an integer.")
             
-        if isinstance(self.min_samples_leaf, int):
+        if isinstance(self.min_samples_in_leaf, int):
             if self.min_samples_leaf <= 0:
-                raise ValueError("'min_samples_leaf' must be greater than zero.")
+                raise ValueError("'min_samples_in_leaf' must be greater than zero.")
 
         if not isinstance(self.max_depth, type(None)) or not isinstance(self.max_depth, int): 
             raise TypeError("'max_depth' must be an integer greater than zero or None.")
