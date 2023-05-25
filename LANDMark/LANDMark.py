@@ -160,7 +160,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
                               "tsallis-gain-ratio"}
 
         # Check that X and y meet the minimum requirements
-        X_conv, y_conv = check_X_y(accept_sparse = False)
+        X_conv, y_conv = check_X_y(X, y, accept_sparse = False)
 
         if not isinstance(self.n_estimators, int):
             raise TypeError("'n_estimators' must be an integer.")
