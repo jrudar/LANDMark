@@ -1,4 +1,5 @@
 from __future__ import annotations
+from ast import Pass
 from re import A
 
 import numpy as np
@@ -176,12 +177,13 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
             if self.min_samples_in_leaf <= 0:
                 raise ValueError("'min_samples_in_leaf' must be greater than zero.")
 
-        if not isinstance(self.max_depth, type(None)) or not isinstance(self.max_depth, int): 
-            raise TypeError("'max_depth' must be an integer greater than zero or None.")
-
-        if isinstance(self.max_depth, int):
+        if isinstance(self.max_depth, type(None)):
+            pass 
+        elif isinstance(self.max_depth, int):
             if self.max_depth <= 0:
                 raise ValueError("'max_depth' must be an greater than zero.")
+        else:
+            raise TypeError("'max_depth' must be an integer greater than zero or None.")
 
         if not isinstance(self.max_features, float): 
             raise TypeError("'max_features' must be float.")
