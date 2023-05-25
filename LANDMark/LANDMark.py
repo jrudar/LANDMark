@@ -68,9 +68,9 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
         -----------
         self : object, the fitted model
         """
-        self._check_params(X, y)
+        X_checked, y_checked = self._check_params(X, y)
 
-        self.classes_ = np.unique(y)
+        self.classes_ = np.unique(y_checked)
 
         # Fit a model
         self.estimators_ = Ensemble(
@@ -96,7 +96,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
             n_jobs=self.n_jobs,
         )
 
-        self.estimators_.fit(X, y)
+        self.estimators_.fit(X_checked, y_checked)
 
         return self
 
