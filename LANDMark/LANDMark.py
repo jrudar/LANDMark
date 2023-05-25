@@ -192,12 +192,11 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
             if self.max_features <= 0 or self.max_features > 1: 
                 raise ValueError("'max_features' must be greater than zero but less than or equal to one.")
 
-        if not isinstance(self.min_gain, float): 
-            raise TypeError("'min_gain' must be float.")
-
         if isinstance(self.min_gain, float):
             if self.min_gain <= 0: 
                 raise ValueError("'min_gain' must be greater than zero.")
+        else:
+            raise TypeError("'min_gain' must be float.")
 
         if isinstance(self.impurity, str):
             if self.impurity not in SUPPORTED_IMPURITY:
