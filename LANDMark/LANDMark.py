@@ -43,7 +43,10 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin, BaseModel):
             ]
         ] = None,
         n_jobs: int = 4,
+        **kwargs
     ):
+        super().__init__(**kwargs)
+
         # Tree construction parameters
         self.n_estimators = n_estimators
         self.min_samples_in_leaf = min_samples_in_leaf
