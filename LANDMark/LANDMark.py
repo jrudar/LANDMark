@@ -13,7 +13,7 @@ from sklearn.utils.validation import check_is_fitted
 from typing import Optional
 
 
-class LANDMarkClassifier(BaseEstimator, ClassifierMixin, BaseModel):
+class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
 
     def __init__(
         self,
