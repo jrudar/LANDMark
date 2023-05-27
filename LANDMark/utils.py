@@ -4,7 +4,7 @@ import numpy as np
 # For Bagging Classifier
 from sklearn.base import ClassifierMixin, BaseEstimator, clone
 from scipy.special import softmax
-from joblib import Parallel, delayed, parallel_backend
+from joblib import Parallel, delayed
 
 
 def _parallel_build(estimator, X, y):

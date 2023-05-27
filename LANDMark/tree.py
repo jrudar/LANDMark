@@ -594,8 +594,6 @@ class MTree(ClassifierMixin, BaseEstimator):
         else:
             X_trf = X
 
-        mapping = {class_name: i for i, class_name in enumerate(self.classes_)}
-
         tree_predictions = self._predict(X_trf)
 
         tree_predictions = [(int(entry[0]), entry[1]) for entry in tree_predictions]
