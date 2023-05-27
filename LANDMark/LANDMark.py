@@ -42,10 +42,9 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin, BaseModel):
                 Union[BaseCleaningSampler, BaseUnderSampler, BaseOverSampler],
             ]
         ] = None,
-        n_jobs: int = 4,
-        **kwargs
+        n_jobs: int = 4
     ):
-        super().__init__(**kwargs)
+        super().__init__()
 
         # Tree construction parameters
         self.n_estimators = n_estimators
