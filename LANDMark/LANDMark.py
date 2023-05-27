@@ -13,7 +13,7 @@ from sklearn.utils.validation import check_is_fitted
 from imblearn.under_sampling.base import BaseCleaningSampler, BaseUnderSampler
 from imblearn.over_sampling.base import BaseOverSampler
 
-from typing import Optional, Union, Type
+from typing import Optional, Any
 
 from pydantic import BaseModel
 
@@ -35,11 +35,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin, BaseModel):
     use_etc: bool = True,
     etc_max_depth: int = 5,
     etc_max_trees: int = 128,
-    resampler: Optional[Union[
-                              Type[TransformerMixin],
-                              Union[BaseCleaningSampler, BaseUnderSampler, BaseOverSampler]
-                              ]
-                        ] = None,
+    resampler = None,
     n_jobs: int = 4
 
     def __init__(
@@ -283,5 +279,11 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin, BaseModel):
         if isinstance(self.n_jobs, int):
             if self.n_jobs <= 0:
                 raise ValueError("'n_jobs' must be greater than zero.")
+
+        if isinstance(self.resampler, type(None)):
+            pass
+
+        elif hasattr(self.resampler, "fit_transform") == False:
+            raise ValueError("'resampler' must have a 'fit_transform(X, y)' function.")
 
         return X_conv, y_conv
