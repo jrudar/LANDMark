@@ -19,52 +19,76 @@ from pydantic import BaseModel
 
 
 class LANDMarkClassifier(BaseEstimator, ClassifierMixin, BaseModel):
+
+    n_estimators: int = 64,
+    min_samples_in_leaf: int = 5,
+    max_depth: Optional[int] = None,
+    max_features: float = 0.80,
+    min_gain: float = 0.0,
+    impurity: str = "gain",
+    q: float = 1.5,
+    use_oracle: bool = True,
+    use_lm_l2: bool = True,
+    use_lm_l1: bool = True,
+    use_nnet: bool = True,
+    nnet_min_samples: int = 32,
+    use_etc: bool = True,
+    etc_max_depth: int = 5,
+    etc_max_trees: int = 128,
+    resampler: Optional[
+        Union[
+            Type[TransformerMixin, BaseEstimator],
+            Union[BaseCleaningSampler, BaseUnderSampler, BaseOverSampler],
+        ]
+    ] = None,
+    n_jobs: int = 4
+
     def __init__(
         self,
-        n_estimators: int = 64,
-        min_samples_in_leaf: int = 5,
-        max_depth: Optional[int] = None,
-        max_features: float = 0.80,
-        min_gain: float = 0.0,
-        impurity: str = "gain",
-        q: float = 1.5,
-        use_oracle: bool = True,
-        use_lm_l2: bool = True,
-        use_lm_l1: bool = True,
-        use_nnet: bool = True,
-        nnet_min_samples: int = 32,
-        use_etc: bool = True,
-        etc_max_depth: int = 5,
-        etc_max_trees: int = 128,
-        resampler: Optional[
-            Union[
-                Type[TransformerMixin, BaseEstimator],
-                Union[BaseCleaningSampler, BaseUnderSampler, BaseOverSampler],
-            ]
-        ] = None,
-        n_jobs: int = 4
+        #n_estimators: int = 64,
+        #min_samples_in_leaf: int = 5,
+        #max_depth: Optional[int] = None,
+        #max_features: float = 0.80,
+        #min_gain: float = 0.0,
+        #impurity: str = "gain",
+        #q: float = 1.5,
+        #use_oracle: bool = True,
+        #use_lm_l2: bool = True,
+        #use_lm_l1: bool = True,
+        #use_nnet: bool = True,
+        #nnet_min_samples: int = 32,
+        #use_etc: bool = True,
+        #etc_max_depth: int = 5,
+        #etc_max_trees: int = 128,
+        #resampler: Optional[
+         #   Union[
+          #      Type[TransformerMixin, BaseEstimator],
+           #     Union[BaseCleaningSampler, BaseUnderSampler, BaseOverSampler],
+            #]
+        #] = None,
+        #n_jobs: int = 4
     ):
         super().__init__()
 
         # Tree construction parameters
-        self.n_estimators = n_estimators
-        self.min_samples_in_leaf = min_samples_in_leaf
-        self.max_depth = max_depth
-        self.max_features = max_features
-        self.min_gain = min_gain
-        self.impurity = impurity
-        self.q = q
-        self.use_oracle = use_oracle
-        self.use_lm_l2 = use_lm_l2
-        self.use_lm_l1 = use_lm_l1
-        self.use_nnet = use_nnet
-        self.nnet_min_samples = nnet_min_samples
-        self.use_etc = use_etc
-        self.etc_max_depth = etc_max_depth
-        self.etc_max_trees = etc_max_trees
-        self.resampler = resampler
+        #self.n_estimators = n_estimators
+        #self.min_samples_in_leaf = min_samples_in_leaf
+        #self.max_depth = max_depth
+        #self.max_features = max_features
+        #self.min_gain = min_gain
+        #self.impurity = impurity
+        #self.q = q
+        #self.use_oracle = use_oracle
+        #self.use_lm_l2 = use_lm_l2
+        #self.use_lm_l1 = use_lm_l1
+        #self.use_nnet = use_nnet
+        #self.nnet_min_samples = nnet_min_samples
+        #self.use_etc = use_etc
+        #self.etc_max_depth = etc_max_depth
+        #self.etc_max_trees = etc_max_trees
+        #self.resampler = resampler
 
-        self.n_jobs = n_jobs
+        #self.n_jobs = n_jobs
 
     def fit(self, X: np.ndarray, y: np.ndarray) -> LANDMarkClassifier:
         """
