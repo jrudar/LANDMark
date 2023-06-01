@@ -32,7 +32,7 @@ def test_landmark():
     X_test = X_trf.transform(X_test)
 
     # Setup a LANDMark model and fit
-    clf = LANDMarkClassifier(n_estimators = 16, n_jobs = 2)
+    clf = LANDMarkClassifier(n_estimators = 16, n_jobs = 2, min_samples_in_leaf = 2)
     clf.fit(X_train, y_train)
 
     # Make a prediction
@@ -114,7 +114,7 @@ def test_models():
     D = clf.decision_function(X_test)
 
 
-test_models()
+#test_models()
 
 test_landmark()
 

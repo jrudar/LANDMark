@@ -17,6 +17,7 @@ from sklearn.linear_model import (
     RidgeClassifier,
 )
 from sklearn.svm import LinearSVC
+from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.model_selection import GridSearchCV
 from sklearn.utils import resample
 
@@ -47,9 +48,9 @@ class LMClassifier(ClassifierMixin, BaseEstimator):
 
         self.classes_, y_counts = np.unique(y_re, return_counts=True)
 
-        y_min = min(y_counts)
-
-        if y_min > 6:
+        self.y_min = min(y_counts)
+        
+        if self.y_min > 6:
             if self.model_type == "lr_l2":
                 self.clf = LogisticRegressionCV(max_iter=2000, cv=5).fit(X_re, y_re)
 
@@ -101,52 +102,9 @@ class LMClassifier(ClassifierMixin, BaseEstimator):
                 self.clf = self.cv.best_estimator_
 
         else:
-            if self.model_type == "lr_l2":
-                self.clf = LogisticRegression(max_iter=2000).fit(X_re, y_re)
-
-            elif self.model_type == "lr_l1":
-                solver = "liblinear"
-                if X.shape[0] >= 500:
-                    solver = "saga"
-
-                self.clf = LogisticRegression(
-                    max_iter=2000, solver=solver, penalty="l1"
-                ).fit(X_re, y_re)
-
-            elif self.model_type == "sgd_l2":
-                self.clf = choice(
-                    [
-                        SGDClassifier(alpha=1.0, loss="hinge", max_iter=2000),
-                        SGDClassifier(alpha=1.0, loss="modified_huber", max_iter=2000),
-                    ]
-                )
-
-                self.clf.fit(X_re, y_re)
-
-            elif self.model_type == "sgd_l1":
-                self.clf = choice(
-                    [
-                        SGDClassifier(
-                            alpha=1.0, loss="hinge", max_iter=2000, penalty="elasticnet"
-                        ),
-                        SGDClassifier(
-                            alpha=1.0,
-                            loss="modified_huber",
-                            max_iter=2000,
-                            penalty="elasticnet",
-                        ),
-                    ]
-                )
-
-                self.clf.fit(X_re, y_re)
-
-            elif self.model_type == "ridge":
-                alpha = choice([0.001, 0.01, 0.1, 1.0, 10, 100, 1000])
-
-                self.clf = RidgeClassifier(alpha = alpha).fit(X_re, y_re)
-
-            elif self.model_type == "lsvc":
-                self.clf = LinearSVC(max_iter=2000).fit(X_re, y_re)
+            self.clf = ExtraTreesClassifier(n_estimators = 128, max_depth = 1)
+            
+            self.clf.fit(X_re, y_re)
 
         return self, self.decision_function(X)
 
@@ -154,4 +112,9 @@ class LMClassifier(ClassifierMixin, BaseEstimator):
         return self.clf.predict(X[:, self.features])
 
     def decision_function(self, X):
-        return self.clf.decision_function(X[:, self.features])
+        
+        if self.y_min > 6:
+            return self.clf.decision_function(X[:, self.features])
+
+        else:
+            return self.clf.predict_proba(X[:, self.features])

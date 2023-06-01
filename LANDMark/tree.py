@@ -254,8 +254,13 @@ class Node:
                         if D.ndim > 1:
                             D = D[:, self.c_choice]
 
-                        L = np.where(D > 0, True, False)
-                        R = np.where(D <= 0, True, False)
+                        if model.y_min > 6:
+                            L = np.where(D > 0, True, False)
+                            R = np.where(D <= 0, True, False)
+
+                        else:
+                            L = np.where(D > 0.5, True, False)
+                            R = np.where(D <= 0.5, True, False)
 
                         X_L_n = X[L].shape[0]
                         X_R_n = X[R].shape[0]
@@ -281,8 +286,13 @@ class Node:
                         if D.ndim > 1:
                             D = D[:, self.c_choice]
 
-                        L = np.where(D > 0, True, False)
-                        R = np.where(D <= 0, True, False)
+                        if model.y_min > 6:
+                            L = np.where(D > 0, True, False)
+                            R = np.where(D <= 0, True, False)
+
+                        else:
+                            L = np.where(D > 0.5, True, False)
+                            R = np.where(D <= 0.5, True, False)
 
                         X_L_n = X[L].shape[0]
                         X_R_n = X[R].shape[0]
