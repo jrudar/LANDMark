@@ -114,7 +114,7 @@ def test_models():
     D = clf.decision_function(X_test)
 
 
-#test_models()
+test_models()
 
 test_landmark()
 
