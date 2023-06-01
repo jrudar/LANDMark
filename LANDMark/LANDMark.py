@@ -228,13 +228,14 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
 
         if not isinstance(self.use_etc, bool):
             raise TypeError("'use_etc' must be True or False.")
-
-        if not isinstance(self.etc_max_depth, int):
-            raise TypeError("'etc_max_depth' must be an integer.")
-
+            
         if isinstance(self.etc_max_depth, int):
             if self.etc_max_depth <= 0:
                 raise ValueError("'etc_max_depth' must be greater than zero.")
+
+        else:
+            if not isinstance(self.etc_max_depth, type(None)):
+                raise TypeError("'etc_max_depth' must be an integer.")
 
         if not isinstance(self.etc_max_trees, int):
             raise TypeError("'etc_max_trees' must be an integer.")
