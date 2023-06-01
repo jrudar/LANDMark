@@ -30,8 +30,8 @@ of the `LANDMark` class and its methods.
         
     impurity: str, default = "gain"
         The method by which LANDMark calculates the purity of each split.
-        Currently, only information gain is used. Currently the options are
-        'gain', 'tsallis', 'gain-ratio', 'tsallis-gain-ratio'.
+        Currently the options are 'gain', 'tsallis', 'gain-ratio', and 
+        'tsallis-gain-ratio'.
         
     q: float, default = 1.5
         Parameter of the Tsallis entropy function. Smaller values may be more
