@@ -568,7 +568,7 @@ class MTree(ClassifierMixin, BaseEstimator):
                 L = np.where(D > 0.5, True, False)
                 R = np.where(D <= 0.5, True, False)
 
-            else:
+            elif type(node.splitter) == LMClassifier:
                 D = node.splitter.decision_function(X)
 
                 if D.ndim > 1:
@@ -581,6 +581,15 @@ class MTree(ClassifierMixin, BaseEstimator):
                 else:
                     L = np.where(D > 0.5, True, False)
                     R = np.where(D <= 0.5, True, False)
+
+            else:
+                D = node.splitter.decision_function(X)
+
+                if D.ndim > 1:
+                    D = D[:, node.c_choice]
+
+                L = np.where(D > 0, True, False)
+                R = np.where(D <= 0, True, False)
 
             X_L = X[L]
             left = true_index[L]
@@ -654,6 +663,29 @@ class MTree(ClassifierMixin, BaseEstimator):
 
                 L = np.where(D > 0.5, True, False)
                 R = np.where(D <= 0.5, True, False)
+
+            elif type(node.splitter) == ETClassifier:
+                D = node.splitter.decision_function(X)
+
+                if D.ndim > 1:
+                    D = D[:, node.c_choice]
+
+                L = np.where(D > 0.5, True, False)
+                R = np.where(D <= 0.5, True, False)
+
+            elif type(node.splitter) == LMClassifier:
+                D = node.splitter.decision_function(X)
+
+                if D.ndim > 1:
+                    D = D[:, node.c_choice]
+
+                if node.splitter.y_min > 6:
+                    L = np.where(D > 0, True, False)
+                    R = np.where(D <= 0, True, False)
+
+                else:
+                    L = np.where(D > 0.5, True, False)
+                    R = np.where(D <= 0.5, True, False)
 
             else:
                 D = node.splitter.decision_function(X)
