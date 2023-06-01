@@ -5,12 +5,12 @@ import numpy as np
 from .utils import Ensemble
 from .tree import MTree
 
-from sklearn.base import ClassifierMixin, BaseEstimator, TransformerMixin
+from sklearn.base import ClassifierMixin, BaseEstimator
 from sklearn.metrics import balanced_accuracy_score
 from sklearn.utils import check_X_y
 from sklearn.utils.validation import check_is_fitted
 
-from typing import Optional
+from typing import Optional, List
 
 
 class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
@@ -150,7 +150,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
 
         return emb
 
-    def _check_params(self, X: np.ndarray, y: np.ndarray):
+    def _check_params(self, X: np.ndarray, y: np.ndarray) -> List[np.ndarray, np.ndarray]:
         SUPPORTED_IMPURITY = {"gain", "gain-ratio", "tsallis", "tsallis-gain-ratio"}
 
         # Check that X and y meet the minimum requirements
@@ -228,13 +228,14 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
 
         if not isinstance(self.use_etc, bool):
             raise TypeError("'use_etc' must be True or False.")
-
-        if not isinstance(self.etc_max_depth, int):
-            raise TypeError("'etc_max_depth' must be an integer.")
-
+            
         if isinstance(self.etc_max_depth, int):
             if self.etc_max_depth <= 0:
                 raise ValueError("'etc_max_depth' must be greater than zero.")
+
+        else:
+            if not isinstance(self.etc_max_depth, type(None)):
+                raise TypeError("'etc_max_depth' must be an integer.")
 
         if not isinstance(self.etc_max_trees, int):
             raise TypeError("'etc_max_trees' must be an integer.")

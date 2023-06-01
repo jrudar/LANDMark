@@ -7,12 +7,10 @@ from random import choice
 from sklearn.base import ClassifierMixin, BaseEstimator, clone
 from sklearn.metrics import balanced_accuracy_score
 
-from .lm_base_clfs import (
-    LMClassifier,
-    RandomOracle,
-    ANNClassifier,
-    ETClassifier,
-)
+from .lm_linear_clfs import LMClassifier
+from .lm_oracle_clfs import RandomOracle
+from .lm_dtree_clfs import ETClassifier
+from .lm_nnet_clfs import ANNClassifier
 
 
 def tsallis_fun(N, N_lab, L, R, y, mode, q):
@@ -256,8 +254,13 @@ class Node:
                         if D.ndim > 1:
                             D = D[:, self.c_choice]
 
-                        L = np.where(D > 0, True, False)
-                        R = np.where(D <= 0, True, False)
+                        if model.y_min > 6:
+                            L = np.where(D > 0, True, False)
+                            R = np.where(D <= 0, True, False)
+
+                        else:
+                            L = np.where(D > 0.5, True, False)
+                            R = np.where(D <= 0.5, True, False)
 
                         X_L_n = X[L].shape[0]
                         X_R_n = X[R].shape[0]
@@ -283,8 +286,13 @@ class Node:
                         if D.ndim > 1:
                             D = D[:, self.c_choice]
 
-                        L = np.where(D > 0, True, False)
-                        R = np.where(D <= 0, True, False)
+                        if model.y_min > 6:
+                            L = np.where(D > 0, True, False)
+                            R = np.where(D <= 0, True, False)
+
+                        else:
+                            L = np.where(D > 0.5, True, False)
+                            R = np.where(D <= 0.5, True, False)
 
                         X_L_n = X[L].shape[0]
                         X_R_n = X[R].shape[0]
@@ -551,6 +559,29 @@ class MTree(ClassifierMixin, BaseEstimator):
                 L = np.where(D > 0.5, True, False)
                 R = np.where(D <= 0.5, True, False)
 
+            elif type(node.splitter) == ETClassifier:
+                D = node.splitter.decision_function(X)
+
+                if D.ndim > 1:
+                    D = D[:, node.c_choice]
+
+                L = np.where(D > 0.5, True, False)
+                R = np.where(D <= 0.5, True, False)
+
+            elif type(node.splitter) == LMClassifier:
+                D = node.splitter.decision_function(X)
+
+                if D.ndim > 1:
+                    D = D[:, node.c_choice]
+
+                if node.splitter.y_min > 6:
+                    L = np.where(D > 0, True, False)
+                    R = np.where(D <= 0, True, False)
+
+                else:
+                    L = np.where(D > 0.5, True, False)
+                    R = np.where(D <= 0.5, True, False)
+
             else:
                 D = node.splitter.decision_function(X)
 
@@ -632,6 +663,29 @@ class MTree(ClassifierMixin, BaseEstimator):
 
                 L = np.where(D > 0.5, True, False)
                 R = np.where(D <= 0.5, True, False)
+
+            elif type(node.splitter) == ETClassifier:
+                D = node.splitter.decision_function(X)
+
+                if D.ndim > 1:
+                    D = D[:, node.c_choice]
+
+                L = np.where(D > 0.5, True, False)
+                R = np.where(D <= 0.5, True, False)
+
+            elif type(node.splitter) == LMClassifier:
+                D = node.splitter.decision_function(X)
+
+                if D.ndim > 1:
+                    D = D[:, node.c_choice]
+
+                if node.splitter.y_min > 6:
+                    L = np.where(D > 0, True, False)
+                    R = np.where(D <= 0, True, False)
+
+                else:
+                    L = np.where(D > 0.5, True, False)
+                    R = np.where(D <= 0.5, True, False)
 
             else:
                 D = node.splitter.decision_function(X)

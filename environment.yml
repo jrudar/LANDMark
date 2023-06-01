@@ -7,7 +7,7 @@ dependencies:
         - numpy == 1.23.5
         - scikit-learn >= 1.1.2
         - joblib >= 1.2.0
-        - tensorflow_addons >= 0.17.1
-        - tensorflow >= 2.9.1
         - pandas >= 1.5.0
         - scipy >= 1.8.1
+        - skorch >= 0.13.0
+        - torch >= 2.0.1
