@@ -7,12 +7,10 @@ from random import choice
 from sklearn.base import ClassifierMixin, BaseEstimator, clone
 from sklearn.metrics import balanced_accuracy_score
 
-from .lm_base_clfs import (
-    LMClassifier,
-    RandomOracle,
-    ANNClassifier,
-    ETClassifier,
-)
+from .lm_linear_clfs import LMClassifier
+from .lm_oracle_clfs import RandomOracle
+from .lm_dtree_clfs import ETClassifier
+from .lm_nnet_clfs import ANNClassifier
 
 
 def tsallis_fun(N, N_lab, L, R, y, mode, q):

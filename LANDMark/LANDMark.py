@@ -5,12 +5,12 @@ import numpy as np
 from .utils import Ensemble
 from .tree import MTree
 
-from sklearn.base import ClassifierMixin, BaseEstimator, TransformerMixin
+from sklearn.base import ClassifierMixin, BaseEstimator
 from sklearn.metrics import balanced_accuracy_score
 from sklearn.utils import check_X_y
 from sklearn.utils.validation import check_is_fitted
 
-from typing import Optional
+from typing import Optional, List
 
 
 class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
@@ -150,7 +150,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
 
         return emb
 
-    def _check_params(self, X: np.ndarray, y: np.ndarray):
+    def _check_params(self, X: np.ndarray, y: np.ndarray) -> List[np.ndarray, np.ndarray]:
         SUPPORTED_IMPURITY = {"gain", "gain-ratio", "tsallis", "tsallis-gain-ratio"}
 
         # Check that X and y meet the minimum requirements
