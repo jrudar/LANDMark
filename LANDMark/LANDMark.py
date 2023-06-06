@@ -33,6 +33,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
         etc_max_depth: int = 5,
         etc_max_trees: int = 128,
         resampler = None,
+        use_cascade: bool = False,
         n_jobs: int = 4
     ):
         # Tree construction parameters
@@ -89,6 +90,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
                 etc_max_depth=self.etc_max_depth,
                 etc_max_trees=self.etc_max_trees,
                 resampler=self.resampler,
+                use_cascade = self.use_cascade
             ),
             n_estimators=self.n_estimators,
             class_names=self.classes_,
@@ -221,6 +223,9 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
 
         if not isinstance(self.nnet_min_samples, int):
             raise TypeError("'nnet_min_samples' must be an integer.")
+
+        if not isinstance(self.use_cascade, bool):
+            raise TypeError("'use_cascade' must be True or False.")
 
         if isinstance(self.nnet_min_samples, int):
             if self.nnet_min_samples <= 0:

@@ -128,6 +128,7 @@ class Node:
         N,
         current_depth,
         use_oracle,
+        use_cascade
     ):
         # Get the ID of the node
         self.node_id = id(self)
@@ -254,13 +255,8 @@ class Node:
                         if D.ndim > 1:
                             D = D[:, self.c_choice]
 
-                        if model.y_min > 6:
-                            L = np.where(D > 0, True, False)
-                            R = np.where(D <= 0, True, False)
-
-                        else:
-                            L = np.where(D > 0.5, True, False)
-                            R = np.where(D <= 0.5, True, False)
+                        L = np.where(D > 0, True, False)
+                        R = np.where(D <= 0, True, False)
 
                         X_L_n = X[L].shape[0]
                         X_R_n = X[R].shape[0]
@@ -286,13 +282,8 @@ class Node:
                         if D.ndim > 1:
                             D = D[:, self.c_choice]
 
-                        if model.y_min > 6:
-                            L = np.where(D > 0, True, False)
-                            R = np.where(D <= 0, True, False)
-
-                        else:
-                            L = np.where(D > 0.5, True, False)
-                            R = np.where(D <= 0.5, True, False)
+                        L = np.where(D > 0, True, False)
+                        R = np.where(D <= 0, True, False)
 
                         X_L_n = X[L].shape[0]
                         X_R_n = X[R].shape[0]
@@ -316,8 +307,8 @@ class Node:
                             if D.ndim > 1:
                                 D = D[:, self.c_choice]
 
-                            L = np.where(D > 0.5, True, False)
-                            R = np.where(D <= 0.5, True, False)
+                            L = np.where(D > 0, True, False)
+                            R = np.where(D <= 0, True, False)
 
                             X_L_n = X[L].shape[0]
                             X_R_n = X[R].shape[0]
@@ -346,8 +337,8 @@ class Node:
                         if D.ndim > 1:
                             D = D[:, self.c_choice]
 
-                        L = np.where(D > 0.5, True, False)
-                        R = np.where(D <= 0.5, True, False)
+                        L = np.where(D > 0, True, False)
+                        R = np.where(D <= 0, True, False)
 
                         X_L_n = X[L].shape[0]
                         X_R_n = X[R].shape[0]
@@ -384,6 +375,18 @@ class Node:
 
                     self.gain = best_gain
                     self.splitter = best_hyperplane[0]
+
+                    #if self.use_cascade:
+                     #   if isinstance(self.splitter, LMClassifier):
+                      #      X_cascade = self.splitter.decision_function(X)
+
+                       # else:
+                        #    X_cascade = self.splitter.predict_proba(X)
+
+                        #X_new = np.hstack((X, X_cascade))
+
+                    #else:
+                     #   X_new = X
 
                     # Recursivly split
                     self.left = Node().get_split(
@@ -474,6 +477,7 @@ class MTree(ClassifierMixin, BaseEstimator):
         self.etc_max_depth = etc_max_depth
         self.etc_max_trees = etc_max_trees
         self.resampler = resampler
+        self.use_cascade = use_cascade
 
     def fit(self, X, y):
         self.classes_ = np.unique(y)
@@ -511,6 +515,7 @@ class MTree(ClassifierMixin, BaseEstimator):
             N=X.shape[0],
             current_depth=1,
             use_oracle=self.use_oracle,
+            use_cascade = self.use_cascade
         )
 
         self.LMTree = tree
@@ -532,84 +537,44 @@ class MTree(ClassifierMixin, BaseEstimator):
 
         return ids
 
-    def _predict(self, X, current_node=None, root=True, sample_index=None):
+    def _predict(self, X, current_node=None, samp_idx=None):
         final_predictions = []
 
-        true_index = None
-        if root:
-            true_index = np.asarray([i for i in range(X.shape[0])])
+        # Get a list of sample IDs if sample_index is not provided and set the node to the root of the tree
+        if isinstance(samp_idx, type(None)):
+            samp_idx = np.asarray([i for i in range(X.shape[0])])
 
-        else:
-            true_index = sample_index
+            current_node = self.LMTree
 
-        node = None
-        if not (current_node):
-            node = self.LMTree
+        if current_node.terminal is False:
 
-        else:
-            node = current_node
+            D = current_node.splitter.decision_function(X)
 
-        if node.terminal is False:
-            if type(node.splitter) == ANNClassifier:
-                D = node.splitter.predict_proba(X)
+            if D.ndim > 1:
+                D = D[:, current_node.c_choice]
 
-                if D.ndim > 1:
-                    D = D[:, node.c_choice]
-
-                L = np.where(D > 0.5, True, False)
-                R = np.where(D <= 0.5, True, False)
-
-            elif type(node.splitter) == ETClassifier:
-                D = node.splitter.decision_function(X)
-
-                if D.ndim > 1:
-                    D = D[:, node.c_choice]
-
-                L = np.where(D > 0.5, True, False)
-                R = np.where(D <= 0.5, True, False)
-
-            elif type(node.splitter) == LMClassifier:
-                D = node.splitter.decision_function(X)
-
-                if D.ndim > 1:
-                    D = D[:, node.c_choice]
-
-                if node.splitter.y_min > 6:
-                    L = np.where(D > 0, True, False)
-                    R = np.where(D <= 0, True, False)
-
-                else:
-                    L = np.where(D > 0.5, True, False)
-                    R = np.where(D <= 0.5, True, False)
-
-            else:
-                D = node.splitter.decision_function(X)
-
-                if D.ndim > 1:
-                    D = D[:, node.c_choice]
-
-                L = np.where(D > 0, True, False)
-                R = np.where(D <= 0, True, False)
+            L = np.where(D > 0, True, False)
+            R = np.where(D <= 0, True, False)
 
             X_L = X[L]
-            left = true_index[L]
+            left = samp_idx[L]
 
             X_R = X[R]
-            right = true_index[R]
+            right = samp_idx[R]
 
             if left.shape[0] > 0:
-                predictions_left = self._predict(X_L, node.left, False, left)
+                predictions_left = self._predict(X_L, current_node.left, left)
                 final_predictions.extend(predictions_left)
 
             if right.shape[0] > 0:
-                predictions_right = self._predict(X_R, node.right, False, right)
+                predictions_right = self._predict(X_R, current_node.right, right)
                 final_predictions.extend(predictions_right)
 
-        elif node.terminal:
-            predictions = node.label(X)
+        elif current_node.terminal:
+            predictions = current_node.label(X)
             predictions = np.asarray(
                 [
-                    (true_index[i], prediction)
+                    (samp_idx[i], prediction)
                     for i, prediction in enumerate(predictions)
                 ]
             )
@@ -637,81 +602,43 @@ class MTree(ClassifierMixin, BaseEstimator):
 
         return score
 
-    def _proximity(self, X, current_node=None, root=True, sample_index=None):
+    def _proximity(self, X, current_node=None, samp_idx=None):
         final_predictions = []
 
-        true_index = None
-        if root:
-            true_index = np.asarray([i for i in range(X.shape[0])])
+        # Get a list of sample IDs if sample_index is not provided and set the node to the root of the tree
+        if isinstance(samp_idx, type(None)):
+            samp_idx = np.asarray([i for i in range(X.shape[0])])
 
-        else:
-            true_index = sample_index
+            current_node = self.LMTree
 
-        node = None
-        if not (current_node):
-            node = self.LMTree
+        # Check if the node is a terminal node
+        if current_node.terminal is False:
 
-        else:
-            node = current_node
+            # Determine splits
+            D = current_node.splitter.decision_function(X)
 
-        if node.terminal is False:
-            if type(node.splitter) == ANNClassifier:
-                D = node.splitter.predict_proba(X)
+            if D.ndim > 1:
+                D = D[:, current_node.c_choice]
 
-                if D.ndim > 1:
-                    D = D[:, node.c_choice]
-
-                L = np.where(D > 0.5, True, False)
-                R = np.where(D <= 0.5, True, False)
-
-            elif type(node.splitter) == ETClassifier:
-                D = node.splitter.decision_function(X)
-
-                if D.ndim > 1:
-                    D = D[:, node.c_choice]
-
-                L = np.where(D > 0.5, True, False)
-                R = np.where(D <= 0.5, True, False)
-
-            elif type(node.splitter) == LMClassifier:
-                D = node.splitter.decision_function(X)
-
-                if D.ndim > 1:
-                    D = D[:, node.c_choice]
-
-                if node.splitter.y_min > 6:
-                    L = np.where(D > 0, True, False)
-                    R = np.where(D <= 0, True, False)
-
-                else:
-                    L = np.where(D > 0.5, True, False)
-                    R = np.where(D <= 0.5, True, False)
-
-            else:
-                D = node.splitter.decision_function(X)
-
-                if D.ndim > 1:
-                    D = D[:, node.c_choice]
-
-                L = np.where(D > 0, True, False)
-                R = np.where(D <= 0, True, False)
+            L = np.where(D > 0, True, False)
+            R = np.where(D <= 0, True, False)
 
             X_L = X[L]
-            left = true_index[L]
+            left = samp_idx[L]
 
             X_R = X[R]
-            right = true_index[R]
+            right = samp_idx[R]
 
             if left.shape[0] > 0:
-                predictions_left = self._proximity(X_L, node.left, False, left)
+                predictions_left = self._proximity(X_L, current_node.left, left)
                 final_predictions.extend(predictions_left)
 
             if right.shape[0] > 0:
-                predictions_right = self._proximity(X_R, node.right, False, right)
+                predictions_right = self._proximity(X_R, current_node.right, right)
                 final_predictions.extend(predictions_right)
 
-        elif node.terminal:
-            return [(entry, node.node_id) for entry in true_index]
+        elif current_node.terminal:
+            return [(entry, current_node.node_id) for entry in samp_idx]
 
         return final_predictions
 
