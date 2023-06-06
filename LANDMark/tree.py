@@ -127,7 +127,8 @@ class Node:
         etc_max_trees,
         N,
         current_depth,
-        use_oracle
+        use_oracle,
+        use_cascade
     ):
         # Get the ID of the node
         self.node_id = id(self)
@@ -185,6 +186,12 @@ class Node:
 
                 D = self.splitter.decision_function(X)
 
+                if use_cascade:
+                    X_new = np.hstack((X, D.reshape(-1,1)))
+
+                else:
+                    X_new = X
+
                 L = np.where(D > 0, True, False)
                 R = np.where(D <= 0, True, False)
 
@@ -194,7 +201,7 @@ class Node:
 
                 # Recursivly split
                 self.left = Node().get_split(
-                    X[L],
+                    X_new[L],
                     y[L],
                     min_samples_in_leaf=min_samples_in_leaf,
                     max_depth=max_depth,
@@ -212,10 +219,11 @@ class Node:
                     N=X.shape[0],
                     current_depth=current_depth + 1,
                     use_oracle=False,
+                    use_cascade = use_cascade
                 )
 
                 self.right = Node().get_split(
-                    X[R],
+                    X_new[R],
                     y[R],
                     min_samples_in_leaf=min_samples_in_leaf,
                     max_depth=max_depth,
@@ -233,6 +241,7 @@ class Node:
                     N=X.shape[0],
                     current_depth=current_depth + 1,
                     use_oracle=False,
+                    use_cascade = use_cascade
                 )
 
                 return self
@@ -375,9 +384,25 @@ class Node:
                     self.gain = best_gain
                     self.splitter = best_hyperplane[0]
 
+                    # Append the output of the decision function to each dataframe
+                    if use_cascade:
+                        if isinstance(self.splitter, LMClassifier):
+                            X_cascade = self.splitter.decision_function(X)
+
+                            if X_cascade.ndim == 1:
+                                X_cascade = X_cascade.reshape(-1,1)
+
+                        else:
+                            X_cascade = self.splitter.predict_proba(X)
+
+                        X_new = np.hstack((X, X_cascade))
+
+                    else:
+                        X_new = X
+
                     # Recursivly split
                     self.left = Node().get_split(
-                        X[L],
+                        X_new[L],
                         y[L],
                         min_samples_in_leaf=min_samples_in_leaf,
                         max_depth=max_depth,
@@ -395,10 +420,11 @@ class Node:
                         N=X.shape[0],
                         current_depth=current_depth + 1,
                         use_oracle=use_oracle,
+                        use_cascade = use_cascade
                     )
 
                     self.right = Node().get_split(
-                        X[R],
+                        X_new[R],
                         y[R],
                         min_samples_in_leaf=min_samples_in_leaf,
                         max_depth=max_depth,
@@ -416,6 +442,7 @@ class Node:
                         N=X.shape[0],
                         current_depth=current_depth + 1,
                         use_oracle=use_oracle,
+                        use_cascade = use_cascade
                     )
 
                     return self
@@ -448,6 +475,7 @@ class MTree(ClassifierMixin, BaseEstimator):
         etc_max_depth,
         etc_max_trees,
         resampler,
+        use_cascade,
     ):
         self.min_samples_in_leaf = min_samples_in_leaf
         self.max_depth = max_depth
@@ -464,6 +492,7 @@ class MTree(ClassifierMixin, BaseEstimator):
         self.etc_max_depth = etc_max_depth
         self.etc_max_trees = etc_max_trees
         self.resampler = resampler
+        self.use_cascade = use_cascade
 
     def fit(self, X, y):
         self.classes_ = np.unique(y)
@@ -501,6 +530,7 @@ class MTree(ClassifierMixin, BaseEstimator):
             N=X.shape[0],
             current_depth=1,
             use_oracle=self.use_oracle,
+            use_cascade = self.use_cascade
         )
 
         self.LMTree = tree
@@ -533,6 +563,7 @@ class MTree(ClassifierMixin, BaseEstimator):
 
         if current_node.terminal is False:
 
+            # Determine where each sample goes
             D = current_node.splitter.decision_function(X)
 
             if D.ndim > 1:
@@ -541,10 +572,26 @@ class MTree(ClassifierMixin, BaseEstimator):
             L = np.where(D > 0, True, False)
             R = np.where(D <= 0, True, False)
 
-            X_L = X[L]
+            # Append decision function data
+            if self.use_cascade:
+                if isinstance(current_node.splitter, LMClassifier) or isinstance(current_node.splitter, RandomOracle):
+                    C = current_node.splitter.decision_function(X)
+
+                    if C.ndim == 1:
+                        C = C.reshape(-1, 1)
+                
+                else:
+                    C = current_node.splitter.predict_proba(X)
+
+                X_new = np.hstack((X, C))
+
+            else:
+                X_new = X
+
+            X_L = X_new[L]
             left = samp_idx[L]
 
-            X_R = X[R]
+            X_R = X_new[R]
             right = samp_idx[R]
 
             if left.shape[0] > 0:
@@ -599,7 +646,7 @@ class MTree(ClassifierMixin, BaseEstimator):
         # Check if the node is a terminal node
         if current_node.terminal is False:
 
-            # Determine splits
+            # Determine where each sample goes
             D = current_node.splitter.decision_function(X)
 
             if D.ndim > 1:
@@ -608,10 +655,26 @@ class MTree(ClassifierMixin, BaseEstimator):
             L = np.where(D > 0, True, False)
             R = np.where(D <= 0, True, False)
 
-            X_L = X[L]
+            # Append decision function data
+            if self.use_cascade:
+                if isinstance(current_node.splitter, LMClassifier) or isinstance(current_node.splitter, RandomOracle):
+                    C = current_node.splitter.decision_function(X)
+
+                    if C.ndim == 1:
+                        C = C.reshape(-1, 1)
+                
+                else:
+                    C = current_node.splitter.predict_proba(X)
+
+                X_new = np.hstack((X, C))
+
+            else:
+                X_new = X
+
+            X_L = X_new[L]
             left = samp_idx[L]
 
-            X_R = X[R]
+            X_R = X_new[R]
             right = samp_idx[R]
 
             if left.shape[0] > 0:

@@ -90,7 +90,8 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
                 use_etc=self.use_etc,
                 etc_max_depth=self.etc_max_depth,
                 etc_max_trees=self.etc_max_trees,
-                resampler=self.resampler
+                resampler=self.resampler,
+                use_cascade = self.use_cascade
             ),
             n_estimators=self.n_estimators,
             class_names=self.classes_,

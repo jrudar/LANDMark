@@ -4,7 +4,7 @@ from LANDMark.lm_linear_clfs import LMClassifier
 from LANDMark.lm_oracle_clfs import RandomOracle
 from LANDMark.lm_dtree_clfs import ETClassifier
 
-from sklearn.datasets import load_wine
+from sklearn.datasets import load_wine, load_breast_cancer
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import balanced_accuracy_score
@@ -31,8 +31,22 @@ def test_landmark():
     X_train = X_trf.transform(X_train)
     X_test = X_trf.transform(X_test)
 
-    # Setup a LANDMark model and fit
-    clf = LANDMarkClassifier(n_estimators = 16, n_jobs = 2, min_samples_in_leaf = 2)
+    # Setup a LANDMark model and fit (With Cascade)
+    clf = LANDMarkClassifier(n_estimators = 16, n_jobs = 4, min_samples_in_leaf = 2, use_cascade = True)
+    clf.fit(X_train, y_train)
+
+    # Make a prediction
+    predictions = clf.predict(X_test)
+
+    # Score
+    BAccC = clf.score(X_test, y_test)
+    assert BAccC >= 0.85
+
+    # Get proximity
+    prox = clf.proximity(X_train)
+
+    # Setup a LANDMark model and fit (Without Cascade)
+    clf = LANDMarkClassifier(n_estimators = 16, n_jobs = 4, min_samples_in_leaf = 2, use_cascade = False)
     clf.fit(X_train, y_train)
 
     # Make a prediction
@@ -44,6 +58,8 @@ def test_landmark():
 
     # Get proximity
     prox = clf.proximity(X_train)
+
+    dfdfd = 5
 
 def test_models():
 
