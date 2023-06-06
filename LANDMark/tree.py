@@ -127,8 +127,7 @@ class Node:
         etc_max_trees,
         N,
         current_depth,
-        use_oracle,
-        use_cascade
+        use_oracle
     ):
         # Get the ID of the node
         self.node_id = id(self)
@@ -376,18 +375,6 @@ class Node:
                     self.gain = best_gain
                     self.splitter = best_hyperplane[0]
 
-                    #if self.use_cascade:
-                     #   if isinstance(self.splitter, LMClassifier):
-                      #      X_cascade = self.splitter.decision_function(X)
-
-                       # else:
-                        #    X_cascade = self.splitter.predict_proba(X)
-
-                        #X_new = np.hstack((X, X_cascade))
-
-                    #else:
-                     #   X_new = X
-
                     # Recursivly split
                     self.left = Node().get_split(
                         X[L],
@@ -477,7 +464,6 @@ class MTree(ClassifierMixin, BaseEstimator):
         self.etc_max_depth = etc_max_depth
         self.etc_max_trees = etc_max_trees
         self.resampler = resampler
-        self.use_cascade = use_cascade
 
     def fit(self, X, y):
         self.classes_ = np.unique(y)
@@ -515,7 +501,6 @@ class MTree(ClassifierMixin, BaseEstimator):
             N=X.shape[0],
             current_depth=1,
             use_oracle=self.use_oracle,
-            use_cascade = self.use_cascade
         )
 
         self.LMTree = tree
