@@ -1,6 +1,3 @@
-import logging
-import os
-
 import warnings
 from sklearn.exceptions import ConvergenceWarning
 
@@ -12,9 +9,7 @@ from sklearn.base import ClassifierMixin, BaseEstimator
 from sklearn.linear_model import (
     RidgeClassifierCV,
     LogisticRegressionCV,
-    LogisticRegression,
     SGDClassifier,
-    RidgeClassifier,
 )
 from sklearn.svm import LinearSVC
 from sklearn.ensemble import ExtraTreesClassifier

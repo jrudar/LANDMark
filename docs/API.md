@@ -5,8 +5,9 @@ of the `LANDMark` class and its methods.
 
 ## Class
 
-    class LANDMark.LANDMark(n_estimators, min_samples_in_leaf, max_depth, max_features, min_gain, impurity, use_oracle, use_lm_l2, use_lm_l1, 
-        use_nnet, nnet_min_samples, use_etc, etc_max_depth = 5, etc_max_trees = 128, max_samples_tree, bootstrap, n_jobs = 4)
+    class LANDMark.LANDMark(n_estimators, min_samples_in_leaf, max_depth, max_features, min_gain, impurity, q, use_oracle, 
+        use_lm_l2, use_lm_l1, use_nnet, nnet_min_samples, use_etc, etc_max_depth = 5, etc_max_trees = 128, resampler = None,
+        use_cascade = False, n_jobs = 4)
 
 ### Parameters
 
@@ -17,8 +18,8 @@ of the `LANDMark` class and its methods.
     min_samples_in_leaf: int, default = 5
         The minimum number of samples in each leaf to proceed to cutting.
         
-    max_depth: int, default = -1
-        The maximum depth of the tree. '-1' implies that trees will fully
+    max_depth: Optional[int], default = None
+        The maximum depth of the tree. 'None' implies that trees will fully
         grow until a stopping criterion is met.
         
     max_features: float, default = 0.80
@@ -68,16 +69,17 @@ of the `LANDMark` class and its methods.
     etc_max_trees: int, default = 128
         Specifies the maximum depth of trees used to train each ExtraTreesClassifier. 
         Only used if 'use_etc' is set to True.
-        
-    max_samples_tree: int, default = -1
-        Specifies the maximum number of samples used to construct each tree.
-        A stratified random sample is chosen to construct each tree. If '-1'
-        is selected, all samples are chosen.
-        
+                
     resampler: The resampling object. Cloning of the object must be possible and,
         at a minimum, the object must have a 'fit_resample(X, y)' method. The
         resampling object can also have a 'transform(X)' method if a user-defined
         transformation occurs during fitting.
+
+    use_cascade: bool, default = False
+        This parameter extends 'X' using the information returned by the best decision
+        function within each node. By doing this, information about the split is
+        retained and has the potential to be used within deeper nodes of the tree.
+        The inspiration for this idea comes from: https://www.ijcai.org/proceedings/2017/0497.pdf
         
     n_jobs: int, default = 4
         The number of processes used to create the LANDMark model.

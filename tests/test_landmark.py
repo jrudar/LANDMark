@@ -17,7 +17,7 @@ dirpath = Path(__file__).parent
 def test_landmark():
 
     # Create the dataset
-    X, y = load_wine(return_X_y = True)
+    X, y = load_breast_cancer(return_X_y = True)
 
     # Split into train and test sets
     X_train, X_test, y_train, y_test = train_test_split(
@@ -59,7 +59,6 @@ def test_landmark():
     # Get proximity
     prox = clf.proximity(X_train)
 
-    dfdfd = 5
 
 def test_models():
 

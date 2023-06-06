@@ -175,9 +175,11 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
 
         if isinstance(self.max_depth, type(None)):
             pass
+
         elif isinstance(self.max_depth, int):
             if self.max_depth <= 0:
                 raise ValueError("'max_depth' must be an greater than zero.")
+
         else:
             raise TypeError("'max_depth' must be an integer greater than zero or None.")
 
@@ -193,6 +195,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
         if isinstance(self.min_gain, float):
             if self.min_gain < 0:
                 raise ValueError("'min_gain' must be greater than or equal to zero.")
+
         else:
             raise TypeError("'min_gain' must be float.")
 
@@ -260,7 +263,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
         if isinstance(self.resampler, type(None)):
             pass
 
-        elif hasattr(self.resampler, "fit_transform") == False:
+        elif hasattr(self.resampler, "fit_transform") is False:
             raise ValueError("'resampler' must have a 'fit_transform(X, y)' function.")
 
         return X_conv, y_conv
