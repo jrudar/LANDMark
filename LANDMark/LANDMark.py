@@ -53,6 +53,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
         self.etc_max_depth = etc_max_depth
         self.etc_max_trees = etc_max_trees
         self.resampler = resampler
+        self.use_cascade = use_cascade
 
         self.n_jobs = n_jobs
 
@@ -89,8 +90,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
                 use_etc=self.use_etc,
                 etc_max_depth=self.etc_max_depth,
                 etc_max_trees=self.etc_max_trees,
-                resampler=self.resampler,
-                use_cascade = self.use_cascade
+                resampler=self.resampler
             ),
             n_estimators=self.n_estimators,
             class_names=self.classes_,
