@@ -97,6 +97,8 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
         with pyt.inference_mode():
             D = clf.predict_proba(X[:, self.features].astype(np.float32))
 
+            D = np.where(D > 0.5, 1, -1)
+
         return self, D
 
     def predict_proba(self, X):
@@ -122,6 +124,12 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
             predictions = clf.predict_proba(X[:, self.features].astype(np.float32))
 
         return predictions
+
+    def decision_function(self, X):
+
+        D = self.predict_proba(X)
+
+        return np.where(D > 0.5, 1, -1)
 
     def predict(self, X):
 

@@ -117,4 +117,6 @@ class LMClassifier(ClassifierMixin, BaseEstimator):
             return self.clf.decision_function(X[:, self.features])
 
         else:
-            return self.clf.predict_proba(X[:, self.features])
+            D = self.clf.predict_proba(X[:, self.features])
+
+            return np.where(D > 0.5, 1, -1)

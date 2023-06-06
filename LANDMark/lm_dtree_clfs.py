@@ -42,6 +42,13 @@ class ETClassifier(ClassifierMixin, BaseEstimator):
     def predict(self, X):
         return self.clf_model.predict(X[:, self.features])
 
-    def decision_function(self, X):
+    def predict_proba(self, X):
+
         return self.clf_model.predict_proba(X[:, self.features])
+
+    def decision_function(self, X):
+        D = self.clf_model.predict_proba(X[:, self.features])
+
+        return np.where(D > 0.5, 1, -1)
+
 
