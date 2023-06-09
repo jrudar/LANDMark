@@ -1,6 +1,7 @@
 from sklearn.utils import resample
 from sklearn.base import ClassifierMixin, BaseEstimator
 from sklearn.preprocessing import LabelEncoder
+from sklearn.ensemble import ExtraTreesClassifier
 
 from math import ceil
 
@@ -48,16 +49,17 @@ class LMNNet(pyt.nn.Module):
 
 
 class ANNClassifier(ClassifierMixin, BaseEstimator):
-    def __init__(self, n_feat=0.8):
+    def __init__(self, n_feat=0.8, minority = 6):
         self.n_feat = n_feat
+        self.minority = minority
 
     def fit(self, X, y):
         self.model_type = "nonlinear_nnet"
 
-        self.classes_, _ = np.unique(y, return_counts=True)
-
+        # Encode y
         self.y_transformer = LabelEncoder().fit(y)
 
+        # Select features
         if X.shape[1] >= 4:
             self.features = np.random.choice(
                 [i for i in range(X.shape[1])],
@@ -68,34 +70,51 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
         else:
             self.features = np.asarray([i for i in range(X.shape[1])])
 
+        # Bootstrap resample
         X_trf, y_trf = resample(X[:, self.features], y, n_samples=X.shape[0], stratify=y)
         X_trf = X_trf.astype(np.float32)
         y_trf = self.y_transformer.transform(y_trf).astype(np.int64)
 
-        self.n_in = X_trf.shape[1]
-        self.n_out = self.classes_.shape[0]
+        # Determine if minimum class count exists
+        self.classes_, y_counts = np.unique(y_trf, return_counts=True)
 
-        if pyt.cuda.is_available():
-            device = "cuda"
-        else:
-            device = "cpu"
+        self.y_min = min(y_counts) * 0.8
 
-        clf = NeuralNetClassifier(LMNNet(n_in = X_trf.shape[1], n_out = self.classes_.shape[0]),
-                             optimizer = pyt.optim.AdamW,
-                             lr = 0.001,
-                             max_epochs = 100,
-                             batch_size = 16,
-                             device = device,
-                             iterator_train__shuffle=True,
-                             verbose = 0
-                             )
+        # Use neural network if more than 6 samples are present in the minority class
+        if self.y_min > self.minority:
 
-        clf.fit(X_trf, y_trf)
+            self.n_in = X_trf.shape[1]
+            self.n_out = self.classes_.shape[0]
+
+            if pyt.cuda.is_available():
+                device = "cuda"
+            else:
+                device = "cpu"
+
+            clf = NeuralNetClassifier(LMNNet(n_in = X_trf.shape[1], n_out = self.classes_.shape[0]),
+                                 optimizer = pyt.optim.AdamW,
+                                 lr = 0.001,
+                                 max_epochs = 100,
+                                 batch_size = 16,
+                                 device = device,
+                                 iterator_train__shuffle=True,
+                                 verbose = 0
+                                 )
+
+            clf.fit(X_trf, y_trf)
         
-        self.params = clf.module.state_dict()
+            self.params = clf.module.state_dict()
 
-        with pyt.inference_mode():
-            D = clf.predict_proba(X[:, self.features].astype(np.float32))
+            with pyt.inference_mode():
+                D = clf.predict_proba(X[:, self.features].astype(np.float32))
+
+                D = np.where(D > 0.5, 1, -1)
+
+        # Otherwise use an Extra Trees Classifier
+        else:
+            self.etc_clf = ExtraTreesClassifier(128, max_depth = 3).fit(X_trf, y_trf)
+
+            D = self.etc_clf.predict_proba(X[:, self.features].astype(np.float32))
 
             D = np.where(D > 0.5, 1, -1)
 
@@ -103,25 +122,30 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
 
     def predict_proba(self, X):
 
-        if pyt.cuda.is_available():
-            device = "cuda"
+        if self.y_min > self.minority:
+
+            if pyt.cuda.is_available():
+                device = "cuda"
+            else:
+                device = "cpu"
+
+            clf = NeuralNetClassifier(LMNNet(n_in = self.n_in, n_out = self.n_out),
+                                      optimizer = pyt.optim.AdamW,
+                                      optimizer__lr = 0.001,
+                                      max_epochs = 100,
+                                      batch_size = 16,
+                                      device = device
+                                      )
+
+            clf.module.load_state_dict(self.params)
+
+            clf.initialize()
+
+            with pyt.inference_mode():
+                predictions = clf.predict_proba(X[:, self.features].astype(np.float32))
+
         else:
-            device = "cpu"
-
-        clf = NeuralNetClassifier(LMNNet(n_in = self.n_in, n_out = self.n_out),
-                                  optimizer = pyt.optim.AdamW,
-                                  optimizer__lr = 0.001,
-                                  max_epochs = 100,
-                                  batch_size = 16,
-                                  device = device
-                                  )
-
-        clf.module.load_state_dict(self.params)
-
-        clf.initialize()
-
-        with pyt.inference_mode():
-            predictions = clf.predict_proba(X[:, self.features].astype(np.float32))
+            predictions = self.etc_clf.predict_proba(X[:, self.features].astype(np.float32))
 
         return predictions
 

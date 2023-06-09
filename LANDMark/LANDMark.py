@@ -27,8 +27,10 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
         use_oracle: bool = True,
         use_lm_l2: bool = True,
         use_lm_l1: bool = True,
+        minority_sz_lm: int = 6,
         use_nnet: bool = True,
         nnet_min_samples: int = 32,
+        minority_sz_nnet: int = 6,
         use_etc: bool = True,
         etc_max_depth: int = 5,
         etc_max_trees: int = 128,
@@ -47,8 +49,10 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
         self.use_oracle = use_oracle
         self.use_lm_l2 = use_lm_l2
         self.use_lm_l1 = use_lm_l1
+        self.minority_sz_lm = minority_sz_lm
         self.use_nnet = use_nnet
         self.nnet_min_samples = nnet_min_samples
+        self.minority_sz_nnet = minority_sz_nnet
         self.use_etc = use_etc
         self.etc_max_depth = etc_max_depth
         self.etc_max_trees = etc_max_trees
@@ -85,8 +89,10 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
                 use_oracle=self.use_oracle,
                 use_lm_l2=self.use_lm_l2,
                 use_lm_l1=self.use_lm_l1,
+                minority_sz_lm = self.minority_sz_lm,
                 use_nnet=self.use_nnet,
                 nnet_min_samples=self.nnet_min_samples,
+                minority_sz_nnet = self.minority_sz_nnet,
                 use_etc=self.use_etc,
                 etc_max_depth=self.etc_max_depth,
                 etc_max_trees=self.etc_max_trees,

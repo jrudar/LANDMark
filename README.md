@@ -65,11 +65,6 @@ To contribute to the development of `LANDMark` please read our [contributing gui
     # Make a prediction
     predictions = clf.predict(X_test)
 
-### Specal Notes
-
-Starting with TensorFlow 2.11, GPU support on Windows 10 and higher requires Windows WSL2.
-See: https://www.tensorflow.org/install/pip
-
 ### References
 
     Rudar, J., Porter, T.M., Wright, M., Golding G.B., Hajibabaei, M. LANDMark: an ensemble 

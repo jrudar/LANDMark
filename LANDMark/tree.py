@@ -120,8 +120,10 @@ class Node:
         q,
         use_lm_l2,
         use_lm_l1,
+        minority_sz_lm,
         use_nnet,
         nnet_min_samples,
+        minority_sz_nnet,
         use_etc,
         etc_max_depth,
         etc_max_trees,
@@ -186,6 +188,7 @@ class Node:
 
                 D = self.splitter.decision_function(X)
 
+                # Extend X using the output of the decision function, D, if the cascade parameter is True
                 if use_cascade:
                     X_new = np.hstack((X, D.reshape(-1,1)))
 
@@ -211,8 +214,10 @@ class Node:
                     q=q,
                     use_lm_l2=use_lm_l2,
                     use_lm_l1=use_lm_l1,
+                    minority_sz_lm=minority_sz_lm,
                     use_nnet=use_nnet,
                     nnet_min_samples=nnet_min_samples,
+                    minority_sz_nnet=minority_sz_nnet,
                     use_etc=use_etc,
                     etc_max_depth=etc_max_depth,
                     etc_max_trees=etc_max_trees,
@@ -233,8 +238,10 @@ class Node:
                     q=q,
                     use_lm_l2=use_lm_l2,
                     use_lm_l1=use_lm_l1,
+                    minority_sz_lm=minority_sz_lm,
                     use_nnet=use_nnet,
                     nnet_min_samples=nnet_min_samples,
+                    minority_sz_nnet=minority_sz_nnet,
                     use_etc=use_etc,
                     etc_max_depth=etc_max_depth,
                     etc_max_trees=etc_max_trees,
@@ -253,10 +260,10 @@ class Node:
                 # Train Linear Models - L2
                 if use_lm_l2:
                     for clf in [
-                        LMClassifier(model_type="lr_l2", n_feat=max_features),
-                        LMClassifier(model_type="sgd_l2", n_feat=max_features),
-                        LMClassifier(model_type="ridge", n_feat=max_features),
-                        LMClassifier(model_type="lsvc", n_feat=max_features),
+                        LMClassifier(model_type="lr_l2", n_feat=max_features, minority = minority_sz_lm),
+                        LMClassifier(model_type="sgd_l2", n_feat=max_features, minority = minority_sz_lm),
+                        LMClassifier(model_type="ridge", n_feat=max_features, minority = minority_sz_lm),
+                        LMClassifier(model_type="lsvc", n_feat=max_features, minority = minority_sz_lm),
                     ]:
                         model, D = clf.fit(X, y)
 
@@ -282,8 +289,8 @@ class Node:
                 # Train Linear Models - L1 / ElasticNet
                 if use_lm_l1:
                     for clf in [
-                        LMClassifier(model_type="lr_l1", n_feat=max_features),
-                        LMClassifier(model_type="sgd_l1", n_feat=max_features),
+                        LMClassifier(model_type="lr_l1", n_feat=max_features, minority = minority_sz_lm),
+                        LMClassifier(model_type="sgd_l1", n_feat=max_features, minority = minority_sz_lm),
                     ]:
                         model, D = clf.fit(X, y)
 
@@ -309,7 +316,7 @@ class Node:
                 # Train a Neural Network
                 if use_nnet:
                     if X.shape[0] >= nnet_min_samples:
-                        for clf in [ANNClassifier(n_feat=max_features)]:
+                        for clf in [ANNClassifier(n_feat=max_features, minority = minority_sz_nnet)]:
                             model, D = clf.fit(X, y)
 
                             if D.ndim > 1:
@@ -412,8 +419,10 @@ class Node:
                         q=q,
                         use_lm_l2=use_lm_l2,
                         use_lm_l1=use_lm_l1,
+                        minority_sz_lm=minority_sz_lm,
                         use_nnet=use_nnet,
                         nnet_min_samples=nnet_min_samples,
+                        minority_sz_nnet=minority_sz_nnet,
                         use_etc=use_etc,
                         etc_max_depth=etc_max_depth,
                         etc_max_trees=etc_max_trees,
@@ -434,8 +443,10 @@ class Node:
                         q=q,
                         use_lm_l2=use_lm_l2,
                         use_lm_l1=use_lm_l1,
+                        minority_sz_lm=minority_sz_lm,
                         use_nnet=use_nnet,
                         nnet_min_samples=nnet_min_samples,
+                        minority_sz_nnet=minority_sz_nnet,
                         use_etc=use_etc,
                         etc_max_depth=etc_max_depth,
                         etc_max_trees=etc_max_trees,
@@ -469,8 +480,10 @@ class MTree(ClassifierMixin, BaseEstimator):
         use_oracle,
         use_lm_l2,
         use_lm_l1,
+        minority_sz_lm,
         use_nnet,
         nnet_min_samples,
+        minority_sz_nnet,
         use_etc,
         etc_max_depth,
         etc_max_trees,
@@ -486,8 +499,10 @@ class MTree(ClassifierMixin, BaseEstimator):
         self.use_oracle = use_oracle
         self.use_lm_l2 = use_lm_l2
         self.use_lm_l1 = use_lm_l1
+        self.minority_sz_lm = minority_sz_lm
         self.use_nnet = use_nnet
         self.nnet_min_samples = nnet_min_samples
+        self.minority_sz_nnet = minority_sz_nnet
         self.use_etc = use_etc
         self.etc_max_depth = etc_max_depth
         self.etc_max_trees = etc_max_trees
@@ -522,8 +537,10 @@ class MTree(ClassifierMixin, BaseEstimator):
             q=self.q,
             use_lm_l2=self.use_lm_l2,
             use_lm_l1=self.use_lm_l1,
+            minority_sz_lm = self.minority_sz_lm,
             use_nnet=self.use_nnet,
             nnet_min_samples=self.nnet_min_samples,
+            minority_sz_nnet = self.minority_sz_nnet,
             use_etc=self.use_etc,
             etc_max_depth=self.etc_max_depth,
             etc_max_trees=self.etc_max_trees,
