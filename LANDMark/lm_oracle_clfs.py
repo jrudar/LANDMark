@@ -3,7 +3,6 @@ import numpy as np
 from math import ceil
 
 from sklearn.base import ClassifierMixin, BaseEstimator
-from sklearn.utils.extmath import safe_sparse_dot
 
 from scipy.sparse import issparse
 

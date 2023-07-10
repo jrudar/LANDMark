@@ -685,7 +685,7 @@ class MTree(ClassifierMixin, BaseEstimator):
 
         node_list.update([node.node_id])
 
-        if node.terminal == False:
+        if node.terminal is False:
             node_list = node_list.union(self._get_all_nodes(node.left))
             node_list = node_list.union(self._get_all_nodes(node.right))
 

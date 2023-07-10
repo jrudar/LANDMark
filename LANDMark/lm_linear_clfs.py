@@ -17,8 +17,6 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.utils import resample
 from sklearn.model_selection import StratifiedKFold
 
-from random import choice
-
 from math import ceil
 
 

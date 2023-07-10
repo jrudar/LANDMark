@@ -43,21 +43,23 @@ def test_landmark():
     assert BAccC >= 0.85
 
     # Get proximity
-    prox = clf.proximity(X_train)
+    clf.proximity(X_train, "terminal")
+    clf.proximity(X_train, "path")
 
     # Setup a LANDMark model and fit (Without Cascade)
     clf = LANDMarkClassifier(n_estimators = 16, n_jobs = 4, min_samples_in_leaf = 2, use_cascade = False)
     clf.fit(X_train, y_train)
 
     # Make a prediction
-    predictions = clf.predict(X_test)
+    clf.predict(X_test)
 
     # Score
     BAcc = clf.score(X_test, y_test)
     assert BAcc >= 0.85
 
     # Get proximity
-    prox = clf.proximity(X_train)
+    clf.proximity(X_train, "terminal")
+    clf.proximity(X_train, "path")
 
 
 def test_models():
@@ -82,6 +84,11 @@ def test_models():
     BAcc = balanced_accuracy_score(y_test, p)
     assert BAcc > 0.7
 
+    # Tests the ANN for min samples
+    clf, _ = ANNClassifier().fit(X_train[0:4], y_train[0:4])
+    p = clf.predict(X_test)
+    D = clf.decision_function(X_test)
+
     clf, _ = ETClassifier().fit(X_train, y_train)
     p = clf.predict(X_test)
     BAcc = balanced_accuracy_score(y_test, p)
@@ -96,6 +103,11 @@ def test_models():
     p = clf.predict(X_test)
     BAcc = balanced_accuracy_score(y_test, p)
     assert BAcc > 0.7
+    D = clf.decision_function(X_test)
+
+    # Tests the ETC model for min samples
+    clf, _ = LMClassifier(model_type="lr_l2").fit(X_train[0:4], y_train[0:4])
+    p = clf.predict(X_test)
     D = clf.decision_function(X_test)
 
     clf, _ = LMClassifier(model_type="sgd_l2").fit(X_train, y_train)
