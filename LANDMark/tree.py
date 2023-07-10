@@ -598,6 +598,9 @@ class MTree(ClassifierMixin, BaseEstimator):
 
         self.all_nodes = self._get_all_nodes(self.LMTree)
 
+        self.terminal_nodes = [x[0] for x in self.all_nodes if x[1] == 1]
+        self.all_nodes = [x[0] for x in self.all_nodes]
+
         return self
 
     def _predict(self, X, current_node=None, samp_idx=None):
@@ -683,13 +686,15 @@ class MTree(ClassifierMixin, BaseEstimator):
     def _get_all_nodes(self, node):
         node_list = set()
 
-        node_list.update([node.node_id])
-
         if node.terminal is False:
+            node_list.update([(node.node_id, 0)])
+
             node_list = node_list.union(self._get_all_nodes(node.left))
             node_list = node_list.union(self._get_all_nodes(node.right))
 
         elif node.terminal:
+            node_list.update([(node.node_id, 1)])
+
             return node_list
 
         return node_list
@@ -826,10 +831,10 @@ class MTree(ClassifierMixin, BaseEstimator):
 
             tree_predictions.sort()
 
-            col_dict = {col: i for i, col in enumerate(self.all_ids)}
+            col_dict = {col: i for i, col in enumerate(self.terminal_nodes)}
 
             emb_matrix = np.zeros(
-                shape=(X.shape[0], len(self.all_ids)), dtype=np.ushort
+                shape=(X.shape[0], len(self.terminal_nodes)), dtype=np.ushort
             )
 
             for entry in tree_predictions:

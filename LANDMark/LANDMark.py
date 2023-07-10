@@ -158,7 +158,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
             tree_mats = []
 
             for estimator in self.estimators_.estimators_:
-                tree_mats.append(estimator.proximity(X))
+                tree_mats.append(estimator.proximity(X, prox_type))
 
             emb = np.hstack(tree_mats)
 

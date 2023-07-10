@@ -42,7 +42,7 @@ def test_landmark():
     BAccC = clf.score(X_test, y_test)
     assert BAccC >= 0.85
 
-    # Get proximity
+    # Get proximity - Test Logic
     clf.proximity(X_train, "terminal")
     clf.proximity(X_train, "path")
 
