@@ -41,9 +41,9 @@ class Ensemble(ClassifierMixin, BaseEstimator):
         class_map = {class_name: i for i, class_name in enumerate(self.classes_)}
 
         # Returns an array that of shape (n_estimators, n_samples)
-        prediction_results = Parallel(self.n_jobs)(
-            delayed(self.estimators_[i].predict)(X) for i in range(self.n_estimators)
-        )
+        prediction_results = [
+            self.estimators_[i].predict(X) for i in range(self.n_estimators)
+        ]
 
         prediction_results = np.asarray(prediction_results)
 

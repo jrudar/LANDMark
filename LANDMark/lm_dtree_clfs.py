@@ -6,6 +6,7 @@ from math import ceil
 
 import numpy as np
 
+
 class ETClassifier(ClassifierMixin, BaseEstimator):
     def __init__(self, n_feat=0.8, max_depth=5, max_trees=128):
         self.n_feat = n_feat
@@ -29,13 +30,13 @@ class ETClassifier(ClassifierMixin, BaseEstimator):
 
         self.classes_, y_counts = np.unique(y_re, return_counts=True)
 
-        clf_1 = ExtraTreesClassifier(
+        clf = ExtraTreesClassifier(
             n_estimators=self.max_trees, max_depth=self.max_depth
         )
 
         self.model_type = "nonlinear_etc"
 
-        self.clf_model = clf_1.fit(X_re, y_re)
+        self.clf_model = clf.fit(X_re, y_re)
 
         return self, self.decision_function(X)
 
@@ -43,12 +44,9 @@ class ETClassifier(ClassifierMixin, BaseEstimator):
         return self.clf_model.predict(X[:, self.features])
 
     def predict_proba(self, X):
-
         return self.clf_model.predict_proba(X[:, self.features])
 
     def decision_function(self, X):
         D = self.clf_model.predict_proba(X[:, self.features])
 
         return np.where(D > 0.5, 1, -1)
-
-

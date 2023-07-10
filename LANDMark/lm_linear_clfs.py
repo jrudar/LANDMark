@@ -23,10 +23,11 @@ from math import ceil
 
 
 class LMClassifier(ClassifierMixin, BaseEstimator):
-    def __init__(self, model_type, n_feat=0.8, minority = 6):
+    def __init__(self, model_type, n_feat=0.8, minority=6, use_etc_split=True):
         self.model_type = model_type
         self.n_feat = n_feat
         self.minority = minority
+        self.use_etc_split = use_etc_split
 
     def fit(self, X, y):
         if X.shape[1] >= 4:
@@ -46,11 +47,11 @@ class LMClassifier(ClassifierMixin, BaseEstimator):
         self.classes_, y_counts = np.unique(y_re, return_counts=True)
 
         self.y_min = min(y_counts) * 0.8
-        
+
         if self.y_min > self.minority:
             if self.model_type == "lr_l2":
-                self.clf = LogisticRegressionCV(max_iter=2000, 
-                                                cv=StratifiedKFold(5)
+                self.clf = LogisticRegressionCV(
+                    max_iter=2000, cv=StratifiedKFold(5)
                 ).fit(X_re, y_re)
 
             elif self.model_type == "lr_l1":
@@ -88,8 +89,7 @@ class LMClassifier(ClassifierMixin, BaseEstimator):
 
             elif self.model_type == "ridge":
                 self.clf = RidgeClassifierCV(
-                    alphas=(0.001, 0.01, 0.1, 1.0, 10, 100, 1000),
-                    cv=StratifiedKFold(5)
+                    alphas=(0.001, 0.01, 0.1, 1.0, 10, 100, 1000), cv=StratifiedKFold(5)
                 ).fit(X_re, y_re)
 
             elif self.model_type == "lsvc":
@@ -101,18 +101,22 @@ class LMClassifier(ClassifierMixin, BaseEstimator):
 
                 self.clf = self.cv.best_estimator_
 
-        else:
-            self.clf = ExtraTreesClassifier(n_estimators = 128, max_depth = 1)
-            
-            self.clf.fit(X_re, y_re)
+            return self, self.decision_function(X)
 
-        return self, self.decision_function(X)
+        # Otherwise use an Extra Trees Classifier or Nothing
+        else:
+            if self.use_etc_split:
+                self.clf = ExtraTreesClassifier(128, max_depth=3).fit(X_trf, y_trf)
+
+                return self, self.decision_function(X)
+
+            else:
+                return self, None
 
     def predict(self, X):
         return self.clf.predict(X[:, self.features])
 
     def decision_function(self, X):
-        
         if self.y_min > self.minority:
             return self.clf.decision_function(X[:, self.features])
 

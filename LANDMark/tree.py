@@ -127,10 +127,11 @@ class Node:
         use_etc,
         etc_max_depth,
         etc_max_trees,
+        use_etc_split,
         N,
         current_depth,
         use_oracle,
-        use_cascade
+        use_cascade,
     ):
         # Get the ID of the node
         self.node_id = id(self)
@@ -171,14 +172,13 @@ class Node:
 
             return self
 
-        if isinstance(max_depth, int):
-            if current_depth >= max_depth:
-                leaf_predictions = PredictData(outcomes[np.argmax(counts_prob)])
+        if not isinstance(max_depth, type(None)) and current_depth >= max_depth:
+            leaf_predictions = PredictData(outcomes[np.argmax(counts_prob)])
 
-                self.label = leaf_predictions.predict
-                self.terminal = True
+            self.label = leaf_predictions.predict
+            self.terminal = True
 
-                return self
+            return self
 
         # Otherwise split
         else:
@@ -190,10 +190,7 @@ class Node:
 
                 # Extend X using the output of the decision function, D, if the cascade parameter is True
                 if use_cascade:
-                    X_new = np.hstack((X, D.reshape(-1,1)))
-
-                else:
-                    X_new = X
+                    X = np.hstack((X, D.reshape(-1, 1)))
 
                 L = np.where(D > 0, True, False)
                 R = np.where(D <= 0, True, False)
@@ -204,7 +201,7 @@ class Node:
 
                 # Recursivly split
                 self.left = Node().get_split(
-                    X_new[L],
+                    X[L],
                     y[L],
                     min_samples_in_leaf=min_samples_in_leaf,
                     max_depth=max_depth,
@@ -221,14 +218,15 @@ class Node:
                     use_etc=use_etc,
                     etc_max_depth=etc_max_depth,
                     etc_max_trees=etc_max_trees,
+                    use_etc_split=use_etc_split,
                     N=X.shape[0],
                     current_depth=current_depth + 1,
                     use_oracle=False,
-                    use_cascade = use_cascade
+                    use_cascade=use_cascade,
                 )
 
                 self.right = Node().get_split(
-                    X_new[R],
+                    X[R],
                     y[R],
                     min_samples_in_leaf=min_samples_in_leaf,
                     max_depth=max_depth,
@@ -245,80 +243,50 @@ class Node:
                     use_etc=use_etc,
                     etc_max_depth=etc_max_depth,
                     etc_max_trees=etc_max_trees,
+                    use_etc_split=use_etc_split,
                     N=X.shape[0],
                     current_depth=current_depth + 1,
                     use_oracle=False,
-                    use_cascade = use_cascade
+                    use_cascade=use_cascade,
                 )
 
                 return self
 
-            # Split using a Linear or Neural Network Models
+            # Split using a Linear, Tree, or Neural Network Models
             else:
                 self.c_choice = choice([i for i in range(outcomes.shape[0])])
 
                 # Train Linear Models - L2
                 if use_lm_l2:
                     for clf in [
-                        LMClassifier(model_type="lr_l2", n_feat=max_features, minority = minority_sz_lm),
-                        LMClassifier(model_type="sgd_l2", n_feat=max_features, minority = minority_sz_lm),
-                        LMClassifier(model_type="ridge", n_feat=max_features, minority = minority_sz_lm),
-                        LMClassifier(model_type="lsvc", n_feat=max_features, minority = minority_sz_lm),
+                        LMClassifier(
+                            model_type="lr_l2",
+                            n_feat=max_features,
+                            minority=minority_sz_lm,
+                            use_etc_split=use_etc_split,
+                        ),
+                        LMClassifier(
+                            model_type="sgd_l2",
+                            n_feat=max_features,
+                            minority=minority_sz_lm,
+                            use_etc_split=use_etc_split,
+                        ),
+                        LMClassifier(
+                            model_type="ridge",
+                            n_feat=max_features,
+                            minority=minority_sz_lm,
+                            use_etc_split=use_etc_split,
+                        ),
+                        LMClassifier(
+                            model_type="lsvc",
+                            n_feat=max_features,
+                            minority=minority_sz_lm,
+                            use_etc_split=use_etc_split,
+                        ),
                     ]:
                         model, D = clf.fit(X, y)
 
-                        if D.ndim > 1:
-                            D = D[:, self.c_choice]
-
-                        L = np.where(D > 0, True, False)
-                        R = np.where(D <= 0, True, False)
-
-                        X_L_n = X[L].shape[0]
-                        X_R_n = X[R].shape[0]
-
-                        # Calculate Information Gain
-                        if X_L_n > 0 and X_R_n > 0:
-                            IG = purity_function(
-                                counts_sum, counts_prob, L, R, y, impurity, q
-                            )
-
-                            gains.append(IG)
-                            hyperplane_list.append((model, L, R))
-                            model_type.append(model.model_type)
-
-                # Train Linear Models - L1 / ElasticNet
-                if use_lm_l1:
-                    for clf in [
-                        LMClassifier(model_type="lr_l1", n_feat=max_features, minority = minority_sz_lm),
-                        LMClassifier(model_type="sgd_l1", n_feat=max_features, minority = minority_sz_lm),
-                    ]:
-                        model, D = clf.fit(X, y)
-
-                        if D.ndim > 1:
-                            D = D[:, self.c_choice]
-
-                        L = np.where(D > 0, True, False)
-                        R = np.where(D <= 0, True, False)
-
-                        X_L_n = X[L].shape[0]
-                        X_R_n = X[R].shape[0]
-
-                        # Calculate Information Gain
-                        if X_L_n > 0 and X_R_n > 0:
-                            IG = purity_function(
-                                counts_sum, counts_prob, L, R, y, impurity, q
-                            )
-
-                            gains.append(IG)
-                            hyperplane_list.append((model, L, R))
-                            model_type.append(model.model_type)
-
-                # Train a Neural Network
-                if use_nnet:
-                    if X.shape[0] >= nnet_min_samples:
-                        for clf in [ANNClassifier(n_feat=max_features, minority = minority_sz_nnet)]:
-                            model, D = clf.fit(X, y)
-
+                        if not isinstance(D, type(None)):
                             if D.ndim > 1:
                                 D = D[:, self.c_choice]
 
@@ -338,6 +306,76 @@ class Node:
                                 hyperplane_list.append((model, L, R))
                                 model_type.append(model.model_type)
 
+                # Train Linear Models - L1 / ElasticNet
+                if use_lm_l1:
+                    for clf in [
+                        LMClassifier(
+                            model_type="lr_l1",
+                            n_feat=max_features,
+                            minority=minority_sz_lm,
+                            use_etc_split=use_etc_split,
+                        ),
+                        LMClassifier(
+                            model_type="sgd_l1",
+                            n_feat=max_features,
+                            minority=minority_sz_lm,
+                            use_etc_split=use_etc_split,
+                        ),
+                    ]:
+                        model, D = clf.fit(X, y)
+
+                        if not isinstance(D, type(None)):
+                            if D.ndim > 1:
+                                D = D[:, self.c_choice]
+
+                            L = np.where(D > 0, True, False)
+                            R = np.where(D <= 0, True, False)
+
+                            X_L_n = X[L].shape[0]
+                            X_R_n = X[R].shape[0]
+
+                            # Calculate Information Gain
+                            if X_L_n > 0 and X_R_n > 0:
+                                IG = purity_function(
+                                    counts_sum, counts_prob, L, R, y, impurity, q
+                                )
+
+                                gains.append(IG)
+                                hyperplane_list.append((model, L, R))
+                                model_type.append(model.model_type)
+
+                # Train a Neural Network
+                if use_nnet:
+                    if X.shape[0] >= nnet_min_samples:
+                        for clf in [
+                            ANNClassifier(
+                                n_feat=max_features,
+                                minority=minority_sz_nnet,
+                                use_etc_split=use_etc_split,
+                            )
+                        ]:
+                            model, D = clf.fit(X, y)
+
+                            if not isinstance(D, type(None)):
+                                if D.ndim > 1:
+                                    D = D[:, self.c_choice]
+
+                                L = np.where(D > 0, True, False)
+                                R = np.where(D <= 0, True, False)
+
+                                X_L_n = X[L].shape[0]
+                                X_R_n = X[R].shape[0]
+
+                                # Calculate Information Gain
+                                if X_L_n > 0 and X_R_n > 0:
+                                    IG = purity_function(
+                                        counts_sum, counts_prob, L, R, y, impurity, q
+                                    )
+
+                                    gains.append(IG)
+                                    hyperplane_list.append((model, L, R))
+                                    model_type.append(model.model_type)
+
                 # Train Decision Tree Models
                 if use_etc:
                     for clf in [
@@ -349,24 +387,25 @@ class Node:
                     ]:
                         model, D = clf.fit(X, y)
 
-                        if D.ndim > 1:
-                            D = D[:, self.c_choice]
+                        if not isinstance(D, type(None)):
+                            if D.ndim > 1:
+                                D = D[:, self.c_choice]
 
-                        L = np.where(D > 0, True, False)
-                        R = np.where(D <= 0, True, False)
+                            L = np.where(D > 0, True, False)
+                            R = np.where(D <= 0, True, False)
 
-                        X_L_n = X[L].shape[0]
-                        X_R_n = X[R].shape[0]
+                            X_L_n = X[L].shape[0]
+                            X_R_n = X[R].shape[0]
 
-                        # Calculate Information Gain
-                        if X_L_n > 0 and X_R_n > 0:
-                            IG = purity_function(
-                                counts_sum, counts_prob, L, R, y, impurity, q
-                            )
+                            # Calculate Information Gain
+                            if X_L_n > 0 and X_R_n > 0:
+                                IG = purity_function(
+                                    counts_sum, counts_prob, L, R, y, impurity, q
+                                )
 
-                            gains.append(IG)
-                            hyperplane_list.append((model, L, R))
-                            model_type.append(model.model_type)
+                                gains.append(IG)
+                                hyperplane_list.append((model, L, R))
+                                model_type.append(model.model_type)
 
                 gains = np.asarray(gains)
                 hyperplane_list = np.asarray(hyperplane_list, dtype="object")
@@ -397,7 +436,7 @@ class Node:
                             X_cascade = self.splitter.decision_function(X)
 
                             if X_cascade.ndim == 1:
-                                X_cascade = X_cascade.reshape(-1,1)
+                                X_cascade = X_cascade.reshape(-1, 1)
 
                         else:
                             X_cascade = self.splitter.predict_proba(X)
@@ -426,10 +465,11 @@ class Node:
                         use_etc=use_etc,
                         etc_max_depth=etc_max_depth,
                         etc_max_trees=etc_max_trees,
+                        use_etc_split=use_etc_split,
                         N=X.shape[0],
                         current_depth=current_depth + 1,
                         use_oracle=use_oracle,
-                        use_cascade = use_cascade
+                        use_cascade=use_cascade,
                     )
 
                     self.right = Node().get_split(
@@ -450,10 +490,11 @@ class Node:
                         use_etc=use_etc,
                         etc_max_depth=etc_max_depth,
                         etc_max_trees=etc_max_trees,
+                        use_etc_split=use_etc_split,
                         N=X.shape[0],
                         current_depth=current_depth + 1,
                         use_oracle=use_oracle,
-                        use_cascade = use_cascade
+                        use_cascade=use_cascade,
                     )
 
                     return self
@@ -487,6 +528,7 @@ class MTree(ClassifierMixin, BaseEstimator):
         use_etc,
         etc_max_depth,
         etc_max_trees,
+        use_etc_split,
         resampler,
         use_cascade,
     ):
@@ -506,6 +548,7 @@ class MTree(ClassifierMixin, BaseEstimator):
         self.use_etc = use_etc
         self.etc_max_depth = etc_max_depth
         self.etc_max_trees = etc_max_trees
+        self.use_etc_split = use_etc_split
         self.resampler = resampler
         self.use_cascade = use_cascade
 
@@ -537,37 +580,25 @@ class MTree(ClassifierMixin, BaseEstimator):
             q=self.q,
             use_lm_l2=self.use_lm_l2,
             use_lm_l1=self.use_lm_l1,
-            minority_sz_lm = self.minority_sz_lm,
+            minority_sz_lm=self.minority_sz_lm,
             use_nnet=self.use_nnet,
             nnet_min_samples=self.nnet_min_samples,
-            minority_sz_nnet = self.minority_sz_nnet,
+            minority_sz_nnet=self.minority_sz_nnet,
             use_etc=self.use_etc,
             etc_max_depth=self.etc_max_depth,
             etc_max_trees=self.etc_max_trees,
+            use_etc_split=self.use_etc_split,
             N=X.shape[0],
             current_depth=1,
             use_oracle=self.use_oracle,
-            use_cascade = self.use_cascade
+            use_cascade=self.use_cascade,
         )
 
         self.LMTree = tree
 
-        # Find all Node Ids
-        self.all_ids = list(set(self._get_node_ids(self.LMTree)))
+        self.all_nodes = self._get_all_nodes(self.LMTree)
 
         return self
-
-    def _get_node_ids(self, node):
-        ids = []
-
-        if node.terminal is False:
-            ids.extend(self._get_node_ids(node.left))
-            ids.extend(self._get_node_ids(node.right))
-
-        else:
-            ids.append(node.node_id)
-
-        return ids
 
     def _predict(self, X, current_node=None, samp_idx=None):
         final_predictions = []
@@ -579,7 +610,6 @@ class MTree(ClassifierMixin, BaseEstimator):
             current_node = self.LMTree
 
         if current_node.terminal is False:
-
             # Determine where each sample goes
             D = current_node.splitter.decision_function(X)
 
@@ -591,12 +621,14 @@ class MTree(ClassifierMixin, BaseEstimator):
 
             # Append decision function data
             if self.use_cascade:
-                if isinstance(current_node.splitter, LMClassifier) or isinstance(current_node.splitter, RandomOracle):
+                if isinstance(current_node.splitter, LMClassifier) or isinstance(
+                    current_node.splitter, RandomOracle
+                ):
                     C = current_node.splitter.decision_function(X)
 
                     if C.ndim == 1:
                         C = C.reshape(-1, 1)
-                
+
                 else:
                     C = current_node.splitter.predict_proba(X)
 
@@ -622,10 +654,7 @@ class MTree(ClassifierMixin, BaseEstimator):
         elif current_node.terminal:
             predictions = current_node.label(X)
             predictions = np.asarray(
-                [
-                    (samp_idx[i], prediction)
-                    for i, prediction in enumerate(predictions)
-                ]
+                [(samp_idx[i], prediction) for i, prediction in enumerate(predictions)]
             )
 
             return predictions
@@ -651,6 +680,20 @@ class MTree(ClassifierMixin, BaseEstimator):
 
         return score
 
+    def _get_all_nodes(self, node):
+        node_list = set()
+
+        node_list.update([node.node_id])
+
+        if node.terminal == False:
+            node_list = node_list.union(self._get_all_nodes(node.left))
+            node_list = node_list.union(self._get_all_nodes(node.right))
+
+        elif node.terminal:
+            return node_list
+
+        return node_list
+
     def _proximity(self, X, current_node=None, samp_idx=None):
         final_predictions = []
 
@@ -662,7 +705,6 @@ class MTree(ClassifierMixin, BaseEstimator):
 
         # Check if the node is a terminal node
         if current_node.terminal is False:
-
             # Determine where each sample goes
             D = current_node.splitter.decision_function(X)
 
@@ -674,12 +716,14 @@ class MTree(ClassifierMixin, BaseEstimator):
 
             # Append decision function data
             if self.use_cascade:
-                if isinstance(current_node.splitter, LMClassifier) or isinstance(current_node.splitter, RandomOracle):
+                if isinstance(current_node.splitter, LMClassifier) or isinstance(
+                    current_node.splitter, RandomOracle
+                ):
                     C = current_node.splitter.decision_function(X)
 
                     if C.ndim == 1:
                         C = C.reshape(-1, 1)
-                
+
                 else:
                     C = current_node.splitter.predict_proba(X)
 
@@ -707,25 +751,103 @@ class MTree(ClassifierMixin, BaseEstimator):
 
         return final_predictions
 
-    def proximity(self, X):
+    def _proximity_path(self, X, current_node=None, samp_idx=None):
+        final_predictions = []
+
+        # Get a list of sample IDs if sample_index is not provided and set the node to the root of the tree
+        if isinstance(samp_idx, type(None)):
+            samp_idx = np.asarray([i for i in range(X.shape[0])])
+
+            current_node = self.LMTree
+
+        # Check if the node is a terminal node
+        if current_node.terminal is False:
+            # Determine where each sample goes
+            D = current_node.splitter.decision_function(X)
+
+            if D.ndim > 1:
+                D = D[:, current_node.c_choice]
+
+            L = np.where(D > 0, True, False)
+            R = np.where(D <= 0, True, False)
+
+            # Append decision function data
+            if self.use_cascade:
+                if isinstance(current_node.splitter, LMClassifier) or isinstance(
+                    current_node.splitter, RandomOracle
+                ):
+                    C = current_node.splitter.decision_function(X)
+
+                    if C.ndim == 1:
+                        C = C.reshape(-1, 1)
+
+                else:
+                    C = current_node.splitter.predict_proba(X)
+
+                X_new = np.hstack((X, C))
+
+            else:
+                X_new = X
+
+            X_L = X_new[L]
+            left = samp_idx[L]
+
+            X_R = X_new[R]
+            right = samp_idx[R]
+
+            if left.shape[0] > 0:
+                final_predictions.extend(
+                    [(entry, current_node.node_id) for entry in samp_idx[L]]
+                )
+                predictions_left = self._proximity_path(X_L, current_node.left, left)
+                final_predictions.extend(predictions_left)
+
+            if right.shape[0] > 0:
+                final_predictions.extend(
+                    [(entry, current_node.node_id) for entry in samp_idx[R]]
+                )
+                predictions_right = self._proximity_path(X_R, current_node.right, right)
+                final_predictions.extend(predictions_right)
+
+        elif current_node.terminal:
+            return [(entry, current_node.node_id) for entry in samp_idx]
+
+        return final_predictions
+
+    def proximity(self, X, prox_type="path"):
         if hasattr(self.resampler, "transform"):
             X_trf = self.resampler.transform(X)
 
         else:
             X_trf = X
 
-        tree_predictions = self._proximity(X_trf)
+        if prox_type == "terminal":
+            tree_predictions = self._proximity(X_trf)
 
-        tree_predictions.sort()
+            tree_predictions.sort()
 
-        col_dict = {col: i for i, col in enumerate(self.all_ids)}
+            col_dict = {col: i for i, col in enumerate(self.all_ids)}
 
-        emb_matrix = np.zeros(shape=(X.shape[0], len(self.all_ids)), dtype=np.ushort)
+            emb_matrix = np.zeros(
+                shape=(X.shape[0], len(self.all_ids)), dtype=np.ushort
+            )
 
-        for entry in tree_predictions:
-            row = entry[0]
-            col = col_dict[entry[1]]
+            for entry in tree_predictions:
+                row = entry[0]
+                col = col_dict[entry[1]]
 
-            emb_matrix[row, col] = 1
+                emb_matrix[row, col] = 1
 
-        return emb_matrix
+            return emb_matrix
+
+        elif prox_type == "path":
+            tree_predictions = self._proximity_path(X_trf)
+
+            emb_matrix = {}
+            for sample in tree_predictions:
+                if sample[0] not in emb_matrix:
+                    emb_matrix[sample[0]] = set()
+
+                emb_matrix[sample[0]].add(sample[1])
+
+            return emb_matrix
