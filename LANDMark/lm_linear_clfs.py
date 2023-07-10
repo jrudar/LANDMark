@@ -106,7 +106,7 @@ class LMClassifier(ClassifierMixin, BaseEstimator):
         # Otherwise use an Extra Trees Classifier or Nothing
         else:
             if self.use_etc_split:
-                self.clf = ExtraTreesClassifier(128, max_depth=3).fit(X_trf, y_trf)
+                self.clf = ExtraTreesClassifier(128, max_depth=3).fit(X_re, y_re)
 
                 return self, self.decision_function(X)
 
