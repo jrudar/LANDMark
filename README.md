@@ -29,46 +29,12 @@ An overview of the API can be found [here](docs/API.md).
 
 ## Usage and Examples
 
-Comming Soon
+Examples of how to use `LANDMark` can be found [here](notebooks/README.md).
 
 ## Contributing
 
 To contribute to the development of `LANDMark` please read our [contributing guide](docs/CONTRIBUTING.md)
 
-## Basic Usage
-
-    from LANDMark import LANDMarkClassifier
-
-    from sklearn.datasets import load_wine
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.model_selection import train_test_split
-
-    # Create the dataset
-    X, y = load_wine(return_X_y = True)
-
-    # Split into train and test sets
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=0, stratify=y
-    )
-
-    # Standardize
-    X_trf = StandardScaler()
-    X_trf.fit(X_train)
-
-    X_train = X_trf.transform(X_train)
-    X_test = X_trf.transform(X_test)
-
-    # Setup a LANDMark model and fit
-    clf = LANDMarkClassifier()
-    clf.fit(X_train, y_train)
-
-    # Make a prediction
-    predictions = clf.predict(X_test)
-
-### Specal Notes
-
-Starting with TensorFlow 2.11, GPU support on Windows 10 and higher requires Windows WSL2.
-See: https://www.tensorflow.org/install/pip
 
 ### References
 

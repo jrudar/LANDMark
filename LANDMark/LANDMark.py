@@ -12,9 +12,10 @@ from sklearn.utils.validation import check_is_fitted
 
 from typing import Optional, List
 
+from scipy.sparse import csr_array, issparse
+
 
 class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
-
     def __init__(
         self,
         n_estimators: int = 64,
@@ -27,14 +28,16 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
         use_oracle: bool = True,
         use_lm_l2: bool = True,
         use_lm_l1: bool = True,
+        minority_sz_lm: int = 6,
         use_nnet: bool = True,
         nnet_min_samples: int = 32,
+        minority_sz_nnet: int = 6,
         use_etc: bool = True,
         etc_max_depth: int = 5,
         etc_max_trees: int = 128,
-        resampler = None,
+        resampler=None,
         use_cascade: bool = False,
-        n_jobs: int = 4
+        n_jobs: int = 4,
     ):
         # Tree construction parameters
         self.n_estimators = n_estimators
@@ -47,8 +50,10 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
         self.use_oracle = use_oracle
         self.use_lm_l2 = use_lm_l2
         self.use_lm_l1 = use_lm_l1
+        self.minority_sz_lm = minority_sz_lm
         self.use_nnet = use_nnet
         self.nnet_min_samples = nnet_min_samples
+        self.minority_sz_nnet = minority_sz_nnet
         self.use_etc = use_etc
         self.etc_max_depth = etc_max_depth
         self.etc_max_trees = etc_max_trees
@@ -85,12 +90,15 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
                 use_oracle=self.use_oracle,
                 use_lm_l2=self.use_lm_l2,
                 use_lm_l1=self.use_lm_l1,
+                minority_sz_lm=self.minority_sz_lm,
                 use_nnet=self.use_nnet,
                 nnet_min_samples=self.nnet_min_samples,
+                minority_sz_nnet=self.minority_sz_nnet,
                 use_etc=self.use_etc,
                 etc_max_depth=self.etc_max_depth,
                 etc_max_trees=self.etc_max_trees,
-                resampler=self.resampler
+                resampler=self.resampler,
+                use_cascade=self.use_cascade,
             ),
             n_estimators=self.n_estimators,
             class_names=self.classes_,
@@ -140,23 +148,78 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
 
         return score
 
-    def proximity(self, X: np.ndarray) -> np.ndarray:
+    def proximity(self, X: np.ndarray, prox_type: str = "path") -> np.ndarray:
         check_is_fitted(self, attributes=["classes_", "estimators_"])
 
-        tree_mats = []
+        if prox_type == "terminal":
+            tree_mats = []
 
-        for estimator in self.estimators_.estimators_:
-            tree_mats.append(estimator.proximity(X))
+            for estimator in self.estimators_.estimators_:
+                tree_mats.append(estimator.proximity(X, prox_type))
 
-        emb = np.hstack(tree_mats)
+            emb = np.hstack(tree_mats)
 
-        return emb
+            return csr_array(emb.astype(np.uint8))
 
-    def _check_params(self, X: np.ndarray, y: np.ndarray) -> List[np.ndarray, np.ndarray]:
+        elif prox_type == "path":
+            if hasattr(self, "node_set"):
+                embs = [
+                    est.proximity(X, prox_type) for est in self.estimators_.estimators_
+                ]
+
+                if X.ndim == 1:
+                    emb = np.zeros(shape=(1, len(self.node_set)), dtype=np.uint8)
+                else:
+                    emb = np.zeros(
+                        shape=(X.shape[0], len(self.node_set)), dtype=np.uint8
+                    )
+
+                for tree_emb in embs:
+                    for sample, nodes in tree_emb.items():
+                        for node in nodes:
+                            emb[sample, self.node_set[node]] = 1
+
+                return csr_array(emb)
+
+            else:
+                # Get the list of nodes associated with each sample in X
+                embs = [
+                    est.proximity(X, prox_type) for est in self.estimators_.estimators_
+                ]
+
+                # Create a list of all nodes across all trees in the forest
+                node_set = set()
+                [node_set.update(est.all_nodes) for est in self.estimators_.estimators_]
+
+                node_set = list(node_set)
+
+                # Create the embedding matrix
+                emb = np.zeros(shape=(X.shape[0], len(node_set)), dtype=np.uint8)
+
+                # Create a mapping between node id and index in the embedding matrix
+                self.node_set = {node: i for i, node in enumerate(node_set)}
+                
+                # Update the embedding matrix
+                for tree_emb in embs:
+                    for sample, nodes in tree_emb.items():
+                        for node in nodes:
+                            emb[sample, self.node_set[node]] = 1
+
+                return csr_array(emb)
+
+    def _check_params(
+        self, X: np.ndarray, y: np.ndarray
+    ) -> List[np.ndarray, np.ndarray]:
         SUPPORTED_IMPURITY = {"gain", "gain-ratio", "tsallis", "tsallis-gain-ratio"}
 
         # Check that X and y meet the minimum requirements
-        X_conv, y_conv = check_X_y(X, y, accept_sparse=False)
+        X_conv, y_conv = check_X_y(X, y, accept_sparse=True)
+
+        if not issparse(X_conv):
+            sparsity = 1.0 - (np.count_nonzero(X_conv) / X_conv.size)
+
+            if sparsity >= 0.9:
+                X_conv = csr_array(X_conv)
 
         if not isinstance(self.n_estimators, int):
             raise TypeError("'n_estimators' must be an integer.")
@@ -174,9 +237,11 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
 
         if isinstance(self.max_depth, type(None)):
             pass
+
         elif isinstance(self.max_depth, int):
             if self.max_depth <= 0:
                 raise ValueError("'max_depth' must be an greater than zero.")
+
         else:
             raise TypeError("'max_depth' must be an integer greater than zero or None.")
 
@@ -192,6 +257,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
         if isinstance(self.min_gain, float):
             if self.min_gain < 0:
                 raise ValueError("'min_gain' must be greater than or equal to zero.")
+
         else:
             raise TypeError("'min_gain' must be float.")
 
@@ -233,7 +299,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
 
         if not isinstance(self.use_etc, bool):
             raise TypeError("'use_etc' must be True or False.")
-            
+
         if isinstance(self.etc_max_depth, int):
             if self.etc_max_depth <= 0:
                 raise ValueError("'etc_max_depth' must be greater than zero.")
@@ -259,7 +325,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
         if isinstance(self.resampler, type(None)):
             pass
 
-        elif hasattr(self.resampler, "fit_transform") == False:
+        elif hasattr(self.resampler, "fit_transform") is False:
             raise ValueError("'resampler' must have a 'fit_transform(X, y)' function.")
 
         return X_conv, y_conv
