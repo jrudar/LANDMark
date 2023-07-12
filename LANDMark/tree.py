@@ -516,7 +516,6 @@ class MTree(ClassifierMixin, BaseEstimator):
         use_etc,
         etc_max_depth,
         etc_max_trees,
-        use_etc_split,
         resampler,
         use_cascade,
     ):
