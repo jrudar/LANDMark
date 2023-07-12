@@ -12,7 +12,6 @@ from sklearn.linear_model import (
     SGDClassifier,
 )
 from sklearn.svm import LinearSVC
-from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.model_selection import GridSearchCV
 from sklearn.utils import resample
 from sklearn.model_selection import StratifiedKFold

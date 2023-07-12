@@ -1,7 +1,6 @@
 from sklearn.utils import resample
 from sklearn.base import ClassifierMixin, BaseEstimator
 from sklearn.preprocessing import LabelEncoder
-from sklearn.ensemble import ExtraTreesClassifier
 
 from math import ceil
 
