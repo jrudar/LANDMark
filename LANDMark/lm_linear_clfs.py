@@ -25,7 +25,6 @@ class LMClassifier(ClassifierMixin, BaseEstimator):
         self.model_type = model_type
         self.n_feat = n_feat
         self.minority = minority
-        self.use_etc_split = use_etc_split
 
     def fit(self, X, y):
         if X.shape[1] >= 4:
@@ -103,22 +102,11 @@ class LMClassifier(ClassifierMixin, BaseEstimator):
 
         # Otherwise use an Extra Trees Classifier or Nothing
         else:
-            if self.use_etc_split:
-                self.clf = ExtraTreesClassifier(128, max_depth=3).fit(X_re, y_re)
-
-                return self, self.decision_function(X)
-
-            else:
-                return self, None
+            return self, None
 
     def predict(self, X):
         return self.clf.predict(X[:, self.features])
 
     def decision_function(self, X):
-        if self.y_min > self.minority:
-            return self.clf.decision_function(X[:, self.features])
+        return self.clf.decision_function(X[:, self.features])
 
-        else:
-            D = self.clf.predict_proba(X[:, self.features])
-
-            return np.where(D > 0.5, 1, -1)

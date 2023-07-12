@@ -61,7 +61,6 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
     def __init__(self, n_feat=0.8, minority=6, use_etc_split=True):
         self.n_feat = n_feat
         self.minority = minority
-        self.use_etc_split = use_etc_split
 
     def fit(self, X, y):
         self.model_type = "nonlinear_nnet"
@@ -132,13 +131,7 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
 
         # Otherwise use an Extra Trees Classifier or Nothing
         else:
-            if self.use_etc_split:
-                self.clf = ExtraTreesClassifier(128, max_depth=3).fit(X_trf, y_trf)
-
-                return self, self.decision_function(X)
-
-            else:
-                return self, None
+            return self, None
 
     def predict_proba(self, X):
         if issparse(X):
@@ -147,26 +140,22 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
         else:
             X_not_sparse = X
 
-        if self.y_min > self.minority:
-            clf = LMNNet(n_in=self.n_in, n_out=self.n_out)
+        clf = LMNNet(n_in=self.n_in, n_out=self.n_out)
 
-            clf.load_state_dict(self.params)
+        clf.load_state_dict(self.params)
 
-            n_batch = pyt.arange(0, len(X_not_sparse), 16)
+        n_batch = pyt.arange(0, len(X_not_sparse), 16)
 
-            X_tensor = pyt.tensor(X_not_sparse[:, self.features].astype(np.float32))
+        X_tensor = pyt.tensor(X_not_sparse[:, self.features].astype(np.float32))
 
-            predictions = []
-            for start in n_batch:
-                p = clf(X_tensor[start : start + 16]).detach().cpu().numpy()
-                predictions.extend(p)
+        predictions = []
+        for start in n_batch:
+            p = clf(X_tensor[start : start + 16]).detach().cpu().numpy()
+            predictions.extend(p)
 
-            predictions = np.asarray(predictions)
+        predictions = np.asarray(predictions)
 
-            del clf
-
-        else:
-            predictions = self.clf.predict_proba(X_not_sparse[:, self.features])
+        del clf
 
         return predictions
 

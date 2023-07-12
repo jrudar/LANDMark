@@ -84,11 +84,6 @@ def test_models():
     BAcc = balanced_accuracy_score(y_test, p)
     assert BAcc > 0.7
 
-    # Tests the ANN for min samples
-    clf, _ = ANNClassifier().fit(X_train[0:4], y_train[0:4])
-    p = clf.predict(X_test)
-    D = clf.decision_function(X_test)
-
     clf, _ = ETClassifier().fit(X_train, y_train)
     p = clf.predict(X_test)
     BAcc = balanced_accuracy_score(y_test, p)
@@ -103,11 +98,6 @@ def test_models():
     p = clf.predict(X_test)
     BAcc = balanced_accuracy_score(y_test, p)
     assert BAcc > 0.7
-    D = clf.decision_function(X_test)
-
-    # Tests the ETC model for min samples
-    clf, _ = LMClassifier(model_type="lr_l2").fit(X_train[0:4], y_train[0:4])
-    p = clf.predict(X_test)
     D = clf.decision_function(X_test)
 
     clf, _ = LMClassifier(model_type="sgd_l2").fit(X_train, y_train)

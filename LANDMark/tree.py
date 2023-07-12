@@ -127,7 +127,6 @@ class Node:
         use_etc,
         etc_max_depth,
         etc_max_trees,
-        use_etc_split,
         N,
         current_depth,
         use_oracle,
@@ -218,7 +217,6 @@ class Node:
                     use_etc=use_etc,
                     etc_max_depth=etc_max_depth,
                     etc_max_trees=etc_max_trees,
-                    use_etc_split=use_etc_split,
                     N=X.shape[0],
                     current_depth=current_depth + 1,
                     use_oracle=False,
@@ -243,7 +241,6 @@ class Node:
                     use_etc=use_etc,
                     etc_max_depth=etc_max_depth,
                     etc_max_trees=etc_max_trees,
-                    use_etc_split=use_etc_split,
                     N=X.shape[0],
                     current_depth=current_depth + 1,
                     use_oracle=False,
@@ -263,25 +260,21 @@ class Node:
                             model_type="lr_l2",
                             n_feat=max_features,
                             minority=minority_sz_lm,
-                            use_etc_split=use_etc_split,
                         ),
                         LMClassifier(
                             model_type="sgd_l2",
                             n_feat=max_features,
                             minority=minority_sz_lm,
-                            use_etc_split=use_etc_split,
                         ),
                         LMClassifier(
                             model_type="ridge",
                             n_feat=max_features,
                             minority=minority_sz_lm,
-                            use_etc_split=use_etc_split,
                         ),
                         LMClassifier(
                             model_type="lsvc",
                             n_feat=max_features,
                             minority=minority_sz_lm,
-                            use_etc_split=use_etc_split,
                         ),
                     ]:
                         model, D = clf.fit(X, y)
@@ -313,13 +306,11 @@ class Node:
                             model_type="lr_l1",
                             n_feat=max_features,
                             minority=minority_sz_lm,
-                            use_etc_split=use_etc_split,
                         ),
                         LMClassifier(
                             model_type="sgd_l1",
                             n_feat=max_features,
                             minority=minority_sz_lm,
-                            use_etc_split=use_etc_split,
                         ),
                     ]:
                         model, D = clf.fit(X, y)
@@ -351,7 +342,6 @@ class Node:
                             ANNClassifier(
                                 n_feat=max_features,
                                 minority=minority_sz_nnet,
-                                use_etc_split=use_etc_split,
                             )
                         ]:
                             model, D = clf.fit(X, y)
@@ -465,7 +455,6 @@ class Node:
                         use_etc=use_etc,
                         etc_max_depth=etc_max_depth,
                         etc_max_trees=etc_max_trees,
-                        use_etc_split=use_etc_split,
                         N=X.shape[0],
                         current_depth=current_depth + 1,
                         use_oracle=use_oracle,
@@ -490,7 +479,6 @@ class Node:
                         use_etc=use_etc,
                         etc_max_depth=etc_max_depth,
                         etc_max_trees=etc_max_trees,
-                        use_etc_split=use_etc_split,
                         N=X.shape[0],
                         current_depth=current_depth + 1,
                         use_oracle=use_oracle,
@@ -548,7 +536,6 @@ class MTree(ClassifierMixin, BaseEstimator):
         self.use_etc = use_etc
         self.etc_max_depth = etc_max_depth
         self.etc_max_trees = etc_max_trees
-        self.use_etc_split = use_etc_split
         self.resampler = resampler
         self.use_cascade = use_cascade
 
@@ -587,7 +574,6 @@ class MTree(ClassifierMixin, BaseEstimator):
             use_etc=self.use_etc,
             etc_max_depth=self.etc_max_depth,
             etc_max_trees=self.etc_max_trees,
-            use_etc_split=self.use_etc_split,
             N=X.shape[0],
             current_depth=1,
             use_oracle=self.use_oracle,

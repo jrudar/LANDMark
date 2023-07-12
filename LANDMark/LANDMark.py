@@ -35,7 +35,6 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
         use_etc: bool = True,
         etc_max_depth: int = 5,
         etc_max_trees: int = 128,
-        use_etc_split: bool = False,
         resampler=None,
         use_cascade: bool = False,
         n_jobs: int = 4,
@@ -58,7 +57,6 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
         self.use_etc = use_etc
         self.etc_max_depth = etc_max_depth
         self.etc_max_trees = etc_max_trees
-        self.use_etc_split = use_etc_split
         self.resampler = resampler
         self.use_cascade = use_cascade
 
@@ -99,7 +97,6 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
                 use_etc=self.use_etc,
                 etc_max_depth=self.etc_max_depth,
                 etc_max_trees=self.etc_max_trees,
-                use_etc_split=self.use_etc_split,
                 resampler=self.resampler,
                 use_cascade=self.use_cascade,
             ),
@@ -164,7 +161,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
 
             return csr_array(emb.astype(np.uint8))
 
-        else:
+        elif prox_type == "path":
             if hasattr(self, "node_set"):
                 embs = [
                     est.proximity(X, prox_type) for est in self.estimators_.estimators_
@@ -185,18 +182,24 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
                 return csr_array(emb)
 
             else:
+                # Get the list of nodes associated with each sample in X
                 embs = [
                     est.proximity(X, prox_type) for est in self.estimators_.estimators_
                 ]
 
+                # Create a list of all nodes across all trees in the forest
                 node_set = set()
                 [node_set.update(est.all_nodes) for est in self.estimators_.estimators_]
 
                 node_set = list(node_set)
+
+                # Create the embedding matrix
                 emb = np.zeros(shape=(X.shape[0], len(node_set)), dtype=np.uint8)
 
+                # Create a mapping between node id and index in the embedding matrix
                 self.node_set = {node: i for i, node in enumerate(node_set)}
-
+                
+                # Update the embedding matrix
                 for tree_emb in embs:
                     for sample, nodes in tree_emb.items():
                         for node in nodes:
