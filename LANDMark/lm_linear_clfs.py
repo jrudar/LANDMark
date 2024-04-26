@@ -90,7 +90,7 @@ class LMClassifier(ClassifierMixin, BaseEstimator):
 
             elif self.model_type == "lsvc":
                 self.cv = GridSearchCV(
-                    LinearSVC(max_iter=2000),
+                    LinearSVC(max_iter=2000, dual="auto"),
                     param_grid={"C": [0.001, 0.01, 0.1, 1.0, 10, 100]},
                     cv=StratifiedKFold(5),
                 ).fit(X_re, y_re)
