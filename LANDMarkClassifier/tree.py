@@ -399,7 +399,7 @@ class Node:
 
                 gains = np.asarray(gains)
                 hyperplane_list = np.asarray(hyperplane_list, dtype="object")
-                model_type = np.asarray(model_type, dtype=np.str)
+                model_type = np.asarray(model_type, dtype=str)
 
                 # Ensure that there is at least one set of splits that meets the minimum gain criteria
                 gain_mask = np.where(gains >= min_gain, True, False)
