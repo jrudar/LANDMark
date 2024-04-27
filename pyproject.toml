@@ -69,4 +69,4 @@ py-modules = ["LANDMarkClassifier"]
 addopts = "--cov --cov-report html --cov-report term-missing --cov-fail-under 30"
 
 [tool.coverage.run]
-source = ["LANDMark"]
+source = ["LANDMarkClassifier"]
