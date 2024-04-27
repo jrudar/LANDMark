@@ -1,8 +1,8 @@
-from LANDMark import LANDMarkClassifier
-from LANDMark.lm_nnet_clfs import ANNClassifier
-from LANDMark.lm_linear_clfs import LMClassifier
-from LANDMark.lm_oracle_clfs import RandomOracle
-from LANDMark.lm_dtree_clfs import ETClassifier
+from LANDMarkClassifer import LANDMarkClassifier
+from LANDMarkClassifer.lm_nnet_clfs import ANNClassifier
+from LANDMarkClassifer.lm_linear_clfs import LMClassifier
+from LANDMarkClassifer.lm_oracle_clfs import RandomOracle
+from LANDMarkClassifer.lm_dtree_clfs import ETClassifier
 
 from sklearn.datasets import load_wine, load_breast_cancer
 from sklearn.preprocessing import StandardScaler
