@@ -148,7 +148,7 @@ class LANDMarkClassifier(BaseEstimator, ClassifierMixin):
 
         return score
 
-    def proximity(self, X: np.ndarray, prox_type: str = "path") -> np.ndarray:
+    def proximity(self, X: np.ndarray, prox_type: str = "terminal") -> np.ndarray:
         check_is_fitted(self, attributes=["classes_", "estimators_"])
 
         if prox_type == "terminal":
