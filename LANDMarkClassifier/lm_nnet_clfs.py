@@ -113,6 +113,7 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
             
             # Get device
             use_autocast = False
+            gpu_available = False
             if is_gpu_available():
                 gpu_available = True
                 use_autocast = True
@@ -120,7 +121,6 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
                 self.device = pyt.device("cuda:0")
 
             else:
-                gpu_available = False
                 device_type = "cpu"
                 self.device = pyt.device("cpu")
 
@@ -223,7 +223,12 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
     def decision_function(self, X):
         D = self.predict_proba(X)
 
-        return np.where(D > 0.5, 1, -1)
+        D = np.where(D > 0.5, 1, -1)
+
+        if self.n_out == 1:
+            D = D.flatten()
+
+        return D
 
     def predict(self, X):
         predictions = self.predict_proba(X)
