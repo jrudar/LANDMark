@@ -113,9 +113,7 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
             
             # Get device
             use_autocast = False
-            gpu_available = False
             if is_gpu_available():
-                gpu_available = True
                 use_autocast = True
                 device_type = "cuda:0"
                 self.device = pyt.device("cuda:0")
@@ -153,7 +151,7 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
         # Training loop
         for epoch in range(100):
 
-            if gpu_available:
+            if is_gpu_available():
                 pyt.cuda.empty_cache()
 
             # Training steps
