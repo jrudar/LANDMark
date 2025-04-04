@@ -141,13 +141,6 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
             # Prepare scheduler and optimizer
             optimizer=pyt.optim.AdamW(self.model.parameters())
 
-            scheduler = pyt.optim.lr_scheduler.OneCycleLR(
-                optimizer,
-                max_lr=0.01,
-                steps_per_epoch=len(dataset_train),
-                epochs=100
-            )
-
             # Prepare loss function
             if self.n_out > 2:
                 loss_fn = pyt.nn.CrossEntropyLoss().to(self.device)
@@ -166,7 +159,6 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
             # Training steps
             self.model.train()
 
-            bce_loss = 0.0
             for batch_num, batch in enumerate(dataset_train):
                 x_in, y_in = batch
                 x_in = x_in.to(self.device)
@@ -183,8 +175,6 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
                     # Calculate loss - BCE
                     total_loss = loss_fn(x_logit, y_in)
                     
-                bce_loss += total_loss.item()
-
                 # Backwards pass
                 optimizer.zero_grad()
                 scaler.scale(total_loss).backward()
@@ -192,7 +182,6 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
                 # Update weights
                 scaler.step(optimizer)
                 scaler.update()
-                scheduler.step()
 
             self.params = self.model.state_dict()
 
