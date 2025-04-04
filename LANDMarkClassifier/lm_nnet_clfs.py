@@ -241,4 +241,6 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
 
         predictions = np.argmax(predictions, axis=1)
 
-        return self.y_transformer.inverse_transform(predictions)
+        predictions = np.asarray([self.y_transformer.classes_[x] for x in predictions])
+
+        return predictions
