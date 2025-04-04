@@ -139,7 +139,7 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
             self.model.to(self.device)
 
             # Prepare scheduler and optimizer
-            optimizer=pyt.optim.AdamW(self.model.parameters())
+            optimizer=pyt.optim.AdamW(self.model.parameters(), lr = 0.01)
 
             # Prepare loss function
             if self.n_out > 2:
