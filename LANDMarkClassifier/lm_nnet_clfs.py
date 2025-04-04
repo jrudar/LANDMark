@@ -1,14 +1,13 @@
 from sklearn.utils import resample
 from sklearn.base import ClassifierMixin, BaseEstimator
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelBinarizer
 
 from math import ceil
 
 import numpy as np
 
 import torch as pyt
-
-from skorch import NeuralNetClassifier
+from torch.cuda import is_available as is_gpu_available
 
 from scipy.sparse import issparse
 
@@ -39,7 +38,12 @@ class LMNNet(pyt.nn.Module):
         self.D_3 = pyt.nn.Linear(
             in_features=self.n_out * 16, out_features=self.n_out
         )  # in_features = *8
-        self.O = pyt.nn.Softmax(dim=-1)
+
+        if self.n_out > 2:
+            self.O = pyt.nn.Softmax(dim=-1)
+
+        else:
+            self.O = pyt.nn.Sigmoid()
 
     def forward(self, x):
         o = self.IN(x)
@@ -50,10 +54,10 @@ class LMNNet(pyt.nn.Module):
         o = self.D_2(o)
         o = self.A_2(o)
         o = self.Dr_2(o)
-        o = self.D_3(o)
-        o = self.O(o)
+        logit = self.D_3(o)
+        probs = self.O(logit)
 
-        return o
+        return logit, probs
 
 
 class ANNClassifier(ClassifierMixin, BaseEstimator):
@@ -71,7 +75,7 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
             X_not_sparse = X
 
         # Encode y
-        self.y_transformer = LabelEncoder().fit(y)
+        self.y_transformer = LabelBinarizer().fit(y)
 
         # Select features
         if X_not_sparse.shape[1] >= 4:
@@ -92,39 +96,107 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
             stratify=y,
         )
         X_trf = X_trf.astype(np.float32)
-        y_trf = self.y_transformer.transform(y_trf).astype(np.int64)
+        y_trf = self.y_transformer.transform(y_trf).astype(np.float32)
 
         # Determine if minimum class count exists
-        self.classes_, y_counts = np.unique(y_trf, return_counts=True)
+        self.classes_, y_counts = np.unique(y, return_counts=True)
 
         self.y_min = min(y_counts) * 0.8
 
         # Use neural network if more than 6 samples are present in the minority class
         if self.y_min > self.minority:
             self.n_in = X_trf.shape[1]
+
             self.n_out = self.classes_.shape[0]
+            if self.n_out == 2:
+                self.n_out = 1
+            
+            # Get device
+            use_autocast = False
+            if is_gpu_available():
+                gpu_available = True
+                use_autocast = True
+                device_type = "cuda:0"
+                self.device = pyt.device("cuda:0")
 
-            if pyt.cuda.is_available():
-                device = "cuda"
             else:
-                device = "cpu"
+                gpu_available = False
+                device_type = "cpu"
+                self.device = pyt.device("cpu")
 
-            clf = NeuralNetClassifier(
-                LMNNet(n_in=X_trf.shape[1], n_out=self.classes_.shape[0]),
-                optimizer=pyt.optim.AdamW,
-                lr=0.001,
-                max_epochs=100,
-                batch_size=16,
-                device=device,
-                iterator_train__shuffle=True,
-                verbose=0,
+            # Prepare data
+            X_trf = pyt.tensor(X_trf)
+            y_trf = pyt.tensor(y_trf)
+
+            dataset_train = pyt.utils.data.DataLoader(
+                list(zip(X_trf, y_trf)),
+                shuffle=True,
+                batch_size=16
+                )
+
+            # Prepare model and load it onto the GPU or CPU
+            self.model = LMNNet(n_in=self.n_in, n_out=self.n_out)
+            self.model.to(self.device)
+
+            # Prepare scheduler and optimizer
+            optimizer=pyt.optim.AdamW(self.model.parameters())
+
+            scheduler = pyt.optim.lr_scheduler.OneCycleLR(
+                optimizer,
+                max_lr=0.01,
+                steps_per_epoch=len(dataset_train),
+                epochs=100
             )
 
-            clf.fit(X_trf, y_trf)
+            # Prepare loss function
+            if self.n_out > 2:
+                loss_fn = pyt.nn.CrossEntropyLoss().to(self.device)
 
-            self.params = clf.module.state_dict()
+            else:
+                loss_fn = pyt.nn.BCEWithLogitsLoss().to(self.device)
 
-            del clf
+            scaler = pyt.amp.GradScaler(self.device)
+
+        # Training loop
+        for epoch in range(100):
+
+            if gpu_available:
+                pyt.cuda.empty_cache()
+
+            # Training steps
+            self.model.train()
+
+            bce_loss = 0.0
+            for batch_num, batch in enumerate(dataset_train):
+                x_in, y_in = batch
+                x_in = x_in.to(self.device)
+                y_in = y_in.to(self.device)
+
+                with pyt.amp.autocast(
+                    device_type=device_type,
+                    dtype=pyt.bfloat16,
+                    enabled=use_autocast
+                ):
+                    
+                    x_logit, x_probs = self.model(x_in)
+
+                    # Calculate loss - BCE
+                    total_loss = loss_fn(x_logit, y_in)
+                    
+                bce_loss += total_loss.item()
+
+                # Backwards pass
+                optimizer.zero_grad()
+                scaler.scale(total_loss).backward()
+
+                # Update weights
+                scaler.step(optimizer)
+                scaler.update()
+                scheduler.step()
+
+            self.params = self.model.state_dict()
+
+            del self.model
 
             return self, self.decision_function(X)
 
@@ -149,7 +221,8 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
 
         predictions = []
         for start in n_batch:
-            p = clf(X_tensor[start : start + 16]).detach().cpu().numpy()
+            _, p = clf(X_tensor[start : start + 16])
+            p = p.detach().cpu().numpy()
             predictions.extend(p)
 
         predictions = np.asarray(predictions)
