@@ -148,44 +148,44 @@ class ANNClassifier(ClassifierMixin, BaseEstimator):
 
             scaler = pyt.amp.GradScaler(self.device)
 
-        # Training loop
-        for epoch in range(100):
+            # Training loop
+            for epoch in range(100):
 
-            if is_gpu_available():
-                pyt.cuda.empty_cache()
+                if is_gpu_available():
+                    pyt.cuda.empty_cache()
 
-            # Training steps
-            self.model.train()
+                # Training steps
+                self.model.train()
 
-            for batch_num, batch in enumerate(dataset_train):
-                x_in, y_in = batch
-                x_in = x_in.to(self.device)
-                y_in = y_in.to(self.device)
+                for batch_num, batch in enumerate(dataset_train):
+                    x_in, y_in = batch
+                    x_in = x_in.to(self.device)
+                    y_in = y_in.to(self.device)
 
-                with pyt.amp.autocast(
-                    device_type=device_type,
-                    dtype=pyt.bfloat16,
-                    enabled=use_autocast
-                ):
+                    with pyt.amp.autocast(
+                        device_type=device_type,
+                        dtype=pyt.bfloat16,
+                        enabled=use_autocast
+                    ):
                     
-                    x_logit, x_probs = self.model(x_in)
+                        x_logit, x_probs = self.model(x_in)
 
-                    # Calculate loss - BCE
-                    total_loss = loss_fn(x_logit, y_in)
+                        # Calculate loss - BCE
+                        total_loss = loss_fn(x_logit, y_in)
                     
-                # Backwards pass
-                optimizer.zero_grad()
-                scaler.scale(total_loss).backward()
+                    # Backwards pass
+                    optimizer.zero_grad()
+                    scaler.scale(total_loss).backward()
 
-                # Update weights
-                scaler.step(optimizer)
-                scaler.update()
+                    # Update weights
+                    scaler.step(optimizer)
+                    scaler.update()
 
-            self.params = self.model.state_dict()
+                self.params = self.model.state_dict()
 
-            del self.model
+                del self.model
 
-            return self, self.decision_function(X)
+                return self, self.decision_function(X)
 
         # Otherwise use an Extra Trees Classifier or Nothing
         else:
